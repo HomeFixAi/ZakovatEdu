@@ -475,7 +475,7 @@ async def handle_message(update:Update,context:ContextTypes.DEFAULT_TYPE):
     elif txt=="🎯 Tezkor test":
         sinf=u.get("sinf","9") or "9"; can,_=can_savol(user.id)
         if not can:
-            await update.message.reply_text(f"⏰ *Limit tugadi!* ({BEPUL_LIMIT}/kun)\n💎 Premium: 19,000 so'm/oy\n@ZakovatSupport",parse_mode="Markdown"); return
+            await update.message.reply_text(f"⏰ *Limit tugadi!* ({BEPUL_LIMIT}/kun)\n💎 Premium: 19,000 so'm/oy\n@ZakovatHelp",parse_mode="Markdown"); return
         fan=random.choice(SINF_FANLAR.get(str(sinf),SINF_FANLAR["9"]))
         await update.message.reply_text("⚡ AI savol tayyorlamoqda...")
         savol,idx=await get_savol(fan,sinf,user.id)
