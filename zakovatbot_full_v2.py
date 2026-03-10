@@ -619,7 +619,7 @@ async def handle_callback(update:Update,context:ContextTypes.DEFAULT_TYPE):
                 await q.edit_message_text(f"Fan: *{fan}*\nMavzu yozing:",parse_mode="Markdown")
             else:
                 can,_=can_savol(user.id)
-                if not can: await q.edit_message_text(f"⏰ Limit! ({BEPUL_LIMIT}/kun)\n💎 Premium: 39,000 so'm\n@ZakovatSupport"); return
+                if not can: await q.edit_message_text(f"⏰ Limit! ({BEPUL_LIMIT}/kun)\n💎 Premium: 39,000 so'm\n@ZakovatHelp"); return
                 await q.edit_message_text("⚡ AI savol tayyorlamoqda...")
                 savol,idx=await get_savol(fan,sinf,user.id)
                 await q.edit_message_text(f"{FAN_EMOJI.get(fan,'📚')} *{fan}* | {sinf}-sinf\n\n*{savol['s']}*\n\nJavob:",
@@ -680,7 +680,7 @@ async def handle_callback(update:Update,context:ContextTypes.DEFAULT_TYPE):
     elif data.startswith("soni_"):
         soni=int(data.replace("soni_","")); t=get_teacher(user.id)
         if soni>30 and not t.get("premium") and user.id!=ADMIN_ID:
-            await q.edit_message_text("❌ 30+ savol faqat Premium!\n💎 49,000 so'm/oy | @ZakovatSupport"); return
+            await q.edit_message_text("❌ 30+ savol faqat Premium!\n💎 49,000 so'm/oy | @ZakovatHelp"); return
         context.user_data["test_soni"]=soni; context.user_data["test_bosqich"]="pdf_tur"
         await q.edit_message_text("5️⃣ PDF turi:",
             reply_markup=InlineKeyboardMarkup([[
