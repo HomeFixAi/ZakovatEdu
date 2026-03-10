@@ -401,7 +401,7 @@ async def yordam_cmd(update:Update,context:ContextTypes.DEFAULT_TYPE):
         "🏆 Reyting — Top o'quvchilar\n👤 Profilim — Statistika\n"
         "👨‍🏫 O'qituvchi panel — Test yarat, PDF ol\n\n"
         "💎 *Premium:* Cheksiz savol, PDF, Statistika\n"
-        "O'quvchi: 19,000 so'm/oy | O'qituvchi: 49,000 so'm/oy\n\n"
+        "O'quvchi: 39,000 so'm/oy | O'qituvchi: 79,000 so'm/oy\n\n"
         "📞 @ZakovatHelp",parse_mode="Markdown")
 
 async def teacher_panel_cmd(update:Update,context:ContextTypes.DEFAULT_TYPE):
@@ -490,7 +490,7 @@ async def handle_message(update:Update,context:ContextTypes.DEFAULT_TYPE):
         if not is_teacher(user.id) and user.id!=ADMIN_ID: return
         can,qoldi=can_teacher_test(user.id)
         if not can:
-            await update.message.reply_text(f"❌ Kunlik limit! ({TEACHER_LIMIT}/kun)\n💎 Premium: 49,000 so'm/oy",parse_mode="Markdown"); return
+            await update.message.reply_text(f"❌ Kunlik limit! ({TEACHER_LIMIT}/kun)\n💎 Premium: 79,000 so'm/oy",parse_mode="Markdown"); return
         context.user_data["test_bosqich"]="sinf"
         await update.message.reply_text("✏️ *YANGI TEST*\n\n1️⃣ Sinf tanlang:",parse_mode="Markdown",reply_markup=sinf_menu())
     elif txt=="📁 Mening testlarim":
@@ -508,7 +508,7 @@ async def handle_message(update:Update,context:ContextTypes.DEFAULT_TYPE):
             f"📊 *STATISTIKA*\n\nJami testlar: {len(t.get('testlar',[]))}\nBugun: {t.get('bugun_test',0)} ta",parse_mode="Markdown")
     elif txt in("💎 Premium","💎 Premium olish"):
         await update.message.reply_text(
-            "💎 *PREMIUM*\n\n👨‍🎓 O'quvchi: 39,000 so'm/oy\n• Cheksiz savol\n• PDF test\n\n"
+            "💎 *PREMIUM*\n\n👨‍🎓 O'quvchi:39,000 so'm/oy\n• Cheksiz savol\n• PDF test\n\n"
             "👨‍🏫 O'qituvchi: 79,000 so'm/oy\n• Cheksiz test\n• Professional PDF (40-50 savol)\n\n📞 @ZakovatHelp",parse_mode="Markdown")
     elif txt=="🔙 Orqaga":
         await update.message.reply_text("Asosiy menyu:",reply_markup=main_menu_uid(user.id))
@@ -619,7 +619,7 @@ async def handle_callback(update:Update,context:ContextTypes.DEFAULT_TYPE):
                 await q.edit_message_text(f"Fan: *{fan}*\nMavzu yozing:",parse_mode="Markdown")
             else:
                 can,_=can_savol(user.id)
-                if not can: await q.edit_message_text(f"⏰ Limit! ({BEPUL_LIMIT}/kun)\n💎 Premium: 19,000 so'm\n@ZakovatSupport"); return
+                if not can: await q.edit_message_text(f"⏰ Limit! ({BEPUL_LIMIT}/kun)\n💎 Premium: 39,000 so'm\n@ZakovatSupport"); return
                 await q.edit_message_text("⚡ AI savol tayyorlamoqda...")
                 savol,idx=await get_savol(fan,sinf,user.id)
                 await q.edit_message_text(f"{FAN_EMOJI.get(fan,'📚')} *{fan}* | {sinf}-sinf\n\n*{savol['s']}*\n\nJavob:",
@@ -664,7 +664,7 @@ async def handle_callback(update:Update,context:ContextTypes.DEFAULT_TYPE):
         await q.edit_message_text(t,parse_mode="Markdown")
 
     elif data=="premium_info":
-        await q.edit_message_text("💎 *PREMIUM*\n\nO'quvchi: 39,000 so'm/oy\nO'qituvchi: 79,000 so'm/oy\n\n📞 @ZakovatSupport",parse_mode="Markdown")
+        await q.edit_message_text("💎 *PREMIUM*\n\nO'quvchi: 39,000 so'm/oy\nO'qituvchi: 79,000 so'm/oy\n\n📞 @ZakovatHelp",parse_mode="Markdown")
 
     elif data.startswith("qiyin_"):
         q_val=data.replace("qiyin_",""); context.user_data["test_qiyinlik"]=q_val; context.user_data["test_bosqich"]="soni"
