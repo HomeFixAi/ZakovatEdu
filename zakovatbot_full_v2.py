@@ -1,617 +1,731 @@
 """
-╔══════════════════════════════════════════════════════╗
-║         ZAKOVATBOT — TO'LIQ VERSIYA 2.0             ║
-║      O'zbek ta'lim platformasi (1-11 sinf)          ║
-║                                                      ║
-║  ✅ 1-11 sinf, 14 fan                               ║
-║  ✅ CHEKSIZ savollar (Groq AI)                      ║
-║  ✅ Takrorlanmas savollar (kesh tizimi)              ║
-║  ✅ Professional profil                              ║
-║  ✅ Streak + Gamifikatsiya                           ║
-║  ✅ Referral tizimi                                  ║
-║  ✅ O'qituvchi PDF generator                        ║
-║  ✅ Premium tizimi                                   ║
-╚══════════════════════════════════════════════════════╝
-
-O'RNATISH:
-pip install python-telegram-bot reportlab aiohttp
-
-ISHGA TUSHIRISH:
-python zakovatbot_full_v2.py
+ZAKOVATBOT v3.0 - O'zbek ta'lim platformasi
+✅ O'qituvchi panel | ✅ AI Repetitor | ✅ Premium | ✅ PDF Pro
 """
-
-import logging, json, os, random, asyncio, aiohttp
+import logging, json, os, random, asyncio, aiohttp, re
 from datetime import datetime, date
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, PageBreak
-from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
-# ══════════════════════════════════════════
-# ⚙️ SOZLAMALAR — BU YERNI TO'LDIRING!
-# ══════════════════════════════════════════
 BOT_TOKEN    = "8260900161:AAGModPJoxZQIlTL5_B5u4NagbFUUSY_MSo"
-GROQ_API_KEY = "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"   # groq.com dan oling (BEPUL!)
-ADMIN_ID     = 1967786876                          # @userinfobot ga yozing — sizning ID
+GROQ_API_KEY = "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"
+ADMIN_ID     =  1967786876  
+BEPUL_LIMIT  = 10
+TEACHER_LIMIT = 3
 
-logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO,
-    handlers=[logging.FileHandler("zakovatbot.log", encoding="utf-8"), logging.StreamHandler()]
-)
+logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO,
+    handlers=[logging.FileHandler("zakovatbot.log", encoding="utf-8"), logging.StreamHandler()])
 logger = logging.getLogger(__name__)
 
-# ══════════════════════════════════════════
-# 📚 FANLAR TIZIMI
-# ══════════════════════════════════════════
 SINF_FANLAR = {
-    "1": ["Matematika", "O'qish", "Dunyo"],
-    "2": ["Matematika", "O'zbek tili", "Dunyo", "Ingliz tili"],
-    "3": ["Matematika", "O'zbek tili", "Dunyo", "Ingliz tili"],
-    "4": ["Matematika", "O'zbek tili", "Tabiatshunoslik", "Ingliz tili", "Tarix"],
-    "5": ["Matematika", "O'zbek tili", "Tarix", "Ingliz tili", "Biologiya", "Geografiya"],
-    "6": ["Matematika", "O'zbek tili", "Tarix", "Ingliz tili", "Biologiya", "Geografiya", "Fizika"],
-    "7": ["Algebra", "Geometriya", "O'zbek tili", "Tarix", "Ingliz tili", "Biologiya", "Geografiya", "Fizika", "Kimyo"],
-    "8": ["Algebra", "Geometriya", "O'zbek tili va adabiyot", "Tarix", "Ingliz tili", "Biologiya", "Geografiya", "Fizika", "Kimyo"],
-    "9": ["Algebra", "Geometriya", "O'zbek tili va adabiyot", "Tarix", "Ingliz tili", "Biologiya", "Geografiya", "Fizika", "Kimyo", "Informatika"],
-    "10": ["Matematika", "O'zbek tili va adabiyot", "Tarix", "Ingliz tili", "Biologiya", "Geografiya", "Fizika", "Kimyo", "Informatika"],
-    "11": ["Matematika", "O'zbek tili va adabiyot", "Tarix", "Ingliz tili", "Biologiya", "Geografiya", "Fizika", "Kimyo", "Informatika", "Nemis tili"],
+    "1":["Matematika","O'qish","Dunyo"],
+    "2":["Matematika","O'zbek tili","Dunyo","Ingliz tili"],
+    "3":["Matematika","O'zbek tili","Dunyo","Ingliz tili"],
+    "4":["Matematika","O'zbek tili","Tabiatshunoslik","Ingliz tili","Tarix"],
+    "5":["Matematika","O'zbek tili","Tarix","Ingliz tili","Biologiya","Geografiya"],
+    "6":["Matematika","O'zbek tili","Tarix","Ingliz tili","Biologiya","Geografiya","Fizika"],
+    "7":["Algebra","Geometriya","O'zbek tili","Tarix","Ingliz tili","Biologiya","Geografiya","Fizika","Kimyo"],
+    "8":["Algebra","Geometriya","O'zbek tili va adabiyot","Tarix","Ingliz tili","Biologiya","Geografiya","Fizika","Kimyo"],
+    "9":["Algebra","Geometriya","O'zbek tili va adabiyot","Tarix","Ingliz tili","Biologiya","Geografiya","Fizika","Kimyo","Informatika"],
+    "10":["Matematika","O'zbek tili va adabiyot","Tarix","Ingliz tili","Biologiya","Geografiya","Fizika","Kimyo","Informatika"],
+    "11":["Matematika","O'zbek tili va adabiyot","Tarix","Ingliz tili","Biologiya","Geografiya","Fizika","Kimyo","Informatika","Nemis tili"],
 }
-
 FAN_EMOJI = {
-    "Matematika": "🔢", "Algebra": "📐", "Geometriya": "📏",
-    "O'zbek tili": "📝", "O'zbek tili va adabiyot": "📝", "O'qish": "📖",
-    "Tarix": "📜", "Ingliz tili": "🇬🇧", "Nemis tili": "🇩🇪",
-    "Biologiya": "🌿", "Geografiya": "🌍", "Fizika": "⚡",
-    "Kimyo": "🧪", "Informatika": "💻", "Dunyo": "🌐", "Tabiatshunoslik": "🌱",
+    "Matematika":"🔢","Algebra":"📐","Geometriya":"📏","O'zbek tili":"📝",
+    "O'zbek tili va adabiyot":"📝","O'qish":"📖","Tarix":"📜","Ingliz tili":"🇬🇧",
+    "Nemis tili":"🇩🇪","Biologiya":"🌿","Geografiya":"🌍","Fizika":"⚡",
+    "Kimyo":"🧪","Informatika":"💻","Dunyo":"🌐","Tabiatshunoslik":"🌱",
 }
+QIYINLIK_NOMI = {"oson":"Oson 🟢","urta":"O'rta 🟡","qiyin":"Qiyin 🔴"}
 
-# ══════════════════════════════════════════
-# 📝 ZAXIRA SAVOLLAR (Groq ishlamasa)
-# ══════════════════════════════════════════
 ZAXIRA = {
-    "Matematika": [
-        {"s": "2 + 2 = ?", "v": ["3","4","5","6"], "t": 1, "i": "2+2=4!"},
-        {"s": "10 x 5 = ?", "v": ["40","45","50","55"], "t": 2, "i": "10x5=50!"},
-        {"s": "100 / 4 = ?", "v": ["20","25","30","35"], "t": 1, "i": "100/4=25!"},
-        {"s": "3 daraja 2 = ?", "v": ["6","8","9","12"], "t": 2, "i": "3 daraja 2 = 9!"},
-        {"s": "16 ning ildizi = ?", "v": ["2","3","4","5"], "t": 2, "i": "16 ildizi = 4!"},
-        {"s": "7 x 8 = ?", "v": ["54","56","58","60"], "t": 1, "i": "7x8=56!"},
-        {"s": "1000 - 357 = ?", "v": ["633","643","653","663"], "t": 1, "i": "1000-357=643!"},
+    "Matematika":[
+        {"s":"2³ = ?","v":["4","6","8","9"],"t":2,"i":"2³=2×2×2=8"},
+        {"s":"√144 = ?","v":["10","11","12","13"],"t":2,"i":"√144=12"},
+        {"s":"7×8 = ?","v":["54","56","58","60"],"t":1,"i":"7×8=56"},
+        {"s":"15% dan 200 = ?","v":["20","25","30","35"],"t":2,"i":"200×0.15=30"},
+        {"s":"1/2 + 1/3 = ?","v":["2/5","5/6","3/5","2/6"],"t":1,"i":"3/6+2/6=5/6"},
     ],
-    "Tarix": [
-        {"s": "Amir Temur qachon tug'ilgan?", "v": ["1326","1336","1346","1356"], "t": 1, "i": "1336-yil!"},
-        {"s": "O'zbekiston mustaqilligi?", "v": ["1990","1991","1992","1993"], "t": 1, "i": "1991-yil 1-sentabr!"},
-        {"s": "Al-Xorazmiy qaysi sohada mashhur?", "v": ["Tarix","Matematika","Adabiyot","Musiqa"], "t": 1, "i": "Algebra asoschisi!"},
-        {"s": "Ibn Sino asosiy kasbi?", "v": ["Tarixchi","Shoir","Tabib","Matematik"], "t": 2, "i": "Buyuk tabib va olim!"},
-        {"s": "Ipak yo'li qayerdan o'tgan?", "v": ["Afrika","Yevropa","O'rta Osiyo","Amerika"], "t": 2, "i": "O'rta Osiyo orqali!"},
-        {"s": "Ulug'bek kim edi?", "v": ["Shoir","Astronom","Jangchi","Savdogar"], "t": 1, "i": "Ulug'bek buyuk astronom!"},
+    "Tarix":[
+        {"s":"Amir Temur qachon tug'ilgan?","v":["1326","1336","1346","1356"],"t":1,"i":"1336-yil, Kesh"},
+        {"s":"O'zbekiston mustaqilligi?","v":["1990","1991","1992","1993"],"t":1,"i":"1991-yil 1-sentabr"},
+        {"s":"Ulug'bek rasadxonasi qayerda?","v":["Buxoro","Toshkent","Samarqand","Xiva"],"t":2,"i":"Samarqandda, 1428"},
+        {"s":"Ipak yo'li qayerdan o'tgan?","v":["Afrika","Yevropa","O'rta Osiyo","Amerika"],"t":2,"i":"O'rta Osiyo orqali"},
     ],
-    "Biologiya": [
-        {"s": "Fotosintez qayerda sodir bo'ladi?", "v": ["Ildiz","Barg","Gul","Meva"], "t": 1, "i": "Bargdagi xloroplastlarda!"},
-        {"s": "Odamda nechta suyak bor?", "v": ["186","196","206","216"], "t": 2, "i": "206 ta suyak!"},
-        {"s": "DNA nima?", "v": ["Oqsil","Yog'","Genetik ma'lumot","Vitamin"], "t": 2, "i": "Genetik ma'lumot tashuvchi!"},
-        {"s": "O'simliklar nima yutadi?", "v": ["O2","CO2","N2","H2"], "t": 1, "i": "CO2 yutib O2 chiqaradi!"},
-        {"s": "Eng katta organ?", "v": ["Yurak","Jigar","Teri","O'pka"], "t": 2, "i": "Teri eng katta organ!"},
+    "Biologiya":[
+        {"s":"Fotosintez qayerda?","v":["Ildiz","Barg","Gul","Meva"],"t":1,"i":"Bargdagi xloroplastlarda"},
+        {"s":"Odamda nechta suyak?","v":["186","196","206","216"],"t":2,"i":"206 ta suyak"},
+        {"s":"Eng katta organ?","v":["Yurak","Jigar","Teri","O'pka"],"t":2,"i":"Teri - 2m²"},
     ],
-    "Fizika": [
-        {"s": "Yorug'lik tezligi (km/s)?", "v": ["100000","200000","300000","400000"], "t": 2, "i": "300,000 km/s!"},
-        {"s": "Suv qaynash harorati?", "v": ["50","80","100","120"], "t": 2, "i": "100 daraja C!"},
-        {"s": "Kuch birligi?", "v": ["Joul","Vatt","Nyuton","Paskal"], "t": 2, "i": "Kuch = Nyuton!"},
-        {"s": "Tezlik formulasi?", "v": ["v=a/t","v=s/t","v=s*t","v=F/m"], "t": 1, "i": "v = s/t!"},
+    "Fizika":[
+        {"s":"Yorug'lik tezligi (km/s)?","v":["100,000","200,000","300,000","400,000"],"t":2,"i":"c=300,000 km/s"},
+        {"s":"Suv qaynash harorati?","v":["50°C","80°C","100°C","120°C"],"t":2,"i":"Normal bosimda 100°C"},
+        {"s":"Nyuton 2-qonuni?","v":["F=mv","F=ma","F=ms","F=mt"],"t":1,"i":"F=ma"},
     ],
-    "Kimyo": [
-        {"s": "Suv formulasi?", "v": ["CO2","H2O","NaCl","O2"], "t": 1, "i": "H2O!"},
-        {"s": "Mis elementi belgisi?", "v": ["Co","Cu","Cr","Ca"], "t": 1, "i": "Cu = Cuprum!"},
-        {"s": "Eng yengil element?", "v": ["Geliy","Vodorod","Litiy","Uglerod"], "t": 1, "i": "Vodorod (H)!"},
-        {"s": "NaCl nima?", "v": ["Shakar","Osh tuzi","Soda","Sirka"], "t": 1, "i": "Natriy xlorid = Osh tuzi!"},
+    "Kimyo":[
+        {"s":"Suv formulasi?","v":["CO₂","H₂O","NaCl","O₂"],"t":1,"i":"H₂O"},
+        {"s":"Mis belgisi?","v":["Co","Cu","Cr","Ca"],"t":1,"i":"Cu=Cuprum"},
+        {"s":"Eng yengil element?","v":["Geliy","Vodorod","Litiy","Neon"],"t":1,"i":"H-Vodorod"},
     ],
-    "Ingliz tili": [
-        {"s": "Hello so'zining ma'nosi?", "v": ["Xayr","Salom","Rahmat","Kechirasiz"], "t": 1, "i": "Hello = Salom!"},
-        {"s": "Book so'zining ma'nosi?", "v": ["Qalam","Daftar","Kitob","Stol"], "t": 2, "i": "Book = Kitob!"},
-        {"s": "How old are you? — tarjima?", "v": ["Qayerdasan?","Nechchi yoshsan?","Noming nima?","Yaxshimisan?"], "t": 1, "i": "Nechchi yoshsan?"},
-        {"s": "I am a student — tarjima?", "v": ["Men o'qituvchiman","Men o'quvchiman","Men shifokorman","Men sportchiman"], "t": 1, "i": "I am a student = Men o'quvchiman!"},
+    "Ingliz tili":[
+        {"s":"Present Perfect qachon?","v":["Kecha","Hozir tugagan","Kelajak","Doim"],"t":1,"i":"Have/has+V3"},
+        {"s":"'Ambitious' ma'nosi?","v":["Dangasa","Maqsadli","Qo'rqoq","Baxtli"],"t":1,"i":"Maqsadli,g'ayratli"},
     ],
-    "Geografiya": [
-        {"s": "O'zbekiston poytaxti?", "v": ["Samarqand","Buxoro","Toshkent","Namangan"], "t": 2, "i": "Toshkent — poytaxt!"},
-        {"s": "Dunyo eng katta okeani?", "v": ["Atlantika","Hind","Tinch","Arktika"], "t": 2, "i": "Tinch okeani eng katta!"},
-        {"s": "Amudaryo qayerga quyiladi?", "v": ["Kaspiy","Orol","Balxash","Qoradeniz"], "t": 1, "i": "Orol dengiziga!"},
-        {"s": "O'zbekistonda nechta viloyat?", "v": ["10","12","14","16"], "t": 2, "i": "14 ta viloyat!"},
+    "Geografiya":[
+        {"s":"O'zbekistonda nechta viloyat?","v":["10","12","14","16"],"t":2,"i":"14 ta viloyat"},
+        {"s":"Eng katta okean?","v":["Atlantika","Hind","Tinch","Shimoliy"],"t":2,"i":"Tinch - 165 mln km²"},
     ],
 }
+YUTUQLAR = {
+    "birinchi":{"nom":"🌟 Birinchi qadam","tavsif":"Birinchi javob"},
+    "o10":{"nom":"🔥 10 javob","tavsif":"10 ta savol"},
+    "o50":{"nom":"💪 50 javob","tavsif":"50 ta savol"},
+    "o100":{"nom":"🏆 100 javob","tavsif":"100 ta savol"},
+    "streak5":{"nom":"⚡ 5 streak","tavsif":"5 ketma-ket to'g'ri"},
+    "streak10":{"nom":"🌊 10 streak","tavsif":"10 ketma-ket to'g'ri"},
+    "ustoz":{"nom":"👨‍🏫 Ustoz","tavsif":"O'qituvchi tasdiqlandi"},
+    "premium":{"nom":"💎 Premium","tavsif":"Premium oldi"},
+}
 
-# ══════════════════════════════════════════
-# 💾 DATABASE
-# ══════════════════════════════════════════
 DB_FILE = "zakovatbot_db.json"
 
 def load_db():
     if os.path.exists(DB_FILE):
-        with open(DB_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {"users": {}, "kesh": {}, "stats": {"total_users": 0, "total_answers": 0, "start_date": str(date.today())}}
+        with open(DB_FILE,"r",encoding="utf-8") as f: return json.load(f)
+    return {"users":{},"teachers":{},"teacher_req":{},"kesh":{},
+            "stats":{"total_users":0,"total_answers":0,"total_teachers":0,"start_date":str(date.today())}}
 
 def save_db(db):
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(db, f, ensure_ascii=False, indent=2)
+    with open(DB_FILE,"w",encoding="utf-8") as f: json.dump(db,f,ensure_ascii=False,indent=2)
 
-def get_user(user_id, first_name="", username=""):
-    db = load_db(); uid = str(user_id)
-    if uid not in db["users"]:
-        db["users"][uid] = {
-            "id": user_id, "ism": first_name, "username": username,
-            "sinf": None, "ball": 0, "togri": 0, "notogri": 0,
-            "streak": 0, "max_streak": 0, "bugungi_savol": 0,
-            "oxirgi_kun": str(date.today()), "premium": False,
-            "premium_tugash": None, "referral_kod": f"REF{user_id}",
-            "referral_count": 0, "yutuqlar": [], "korilgan": [],
-            "qoshilgan": str(datetime.now())[:16], "oxirgi_faollik": str(datetime.now())[:16],
-        }
-        db["stats"]["total_users"] += 1; save_db(db)
-    else:
-        if db["users"][uid]["oxirgi_kun"] != str(date.today()):
-            db["users"][uid]["bugungi_savol"] = 0
-            db["users"][uid]["oxirgi_kun"] = str(date.today())
-            save_db(db)
-    return db["users"][uid]
+def get_user(uid,ism="",username=""):
+    db=load_db(); u_str=str(uid)
+    if u_str not in db["users"]:
+        db["users"][u_str]={"ism":ism,"username":username,"sinf":None,"ball":0,"togri":0,"notogri":0,
+            "streak":0,"max_streak":0,"premium":False,"role":"student","yutuqlar":[],
+            "korilgan":[],"referral":0,"ref_by":None,"qoshilgan":str(date.today()),
+            "kunlik_savol":0,"kunlik_sana":str(date.today())}
+        db["stats"]["total_users"]+=1; save_db(db)
+    u=db["users"][u_str]
+    if u.get("kunlik_sana")!=str(date.today()):
+        u["kunlik_savol"]=0; u["kunlik_sana"]=str(date.today())
+        db["users"][u_str]=u; save_db(db)
+    return u
 
-def update_user(user_id, data):
-    db = load_db(); uid = str(user_id)
-    if uid in db["users"]:
-        db["users"][uid].update(data)
-        db["users"][uid]["oxirgi_faollik"] = str(datetime.now())[:16]
+def update_user(uid,data):
+    db=load_db(); u_str=str(uid)
+    if u_str in db["users"]: db["users"][u_str].update(data); save_db(db)
+
+def is_teacher(uid):
+    db=load_db(); return db.get("teachers",{}).get(str(uid),{}).get("tasdiqlangan",False)
+
+def get_teacher(uid):
+    db=load_db(); return db.get("teachers",{}).get(str(uid),{})
+
+def can_savol(uid):
+    u=get_user(uid)
+    if u.get("premium"): return True,9999
+    k=u.get("kunlik_savol",0)
+    if k>=BEPUL_LIMIT: return False,0
+    return True,BEPUL_LIMIT-k
+
+def can_teacher_test(uid):
+    db=load_db(); t=db.get("teachers",{}).get(str(uid),{})
+    if t.get("premium"): return True,9999
+    bugun=t.get("bugun_test",0) if t.get("bugun_sana")==str(date.today()) else 0
+    if bugun>=TEACHER_LIMIT: return False,0
+    return True,TEACHER_LIMIT-bugun
+
+def javob_berdi(uid,togri):
+    db=load_db(); u_str=str(uid); u=db["users"][u_str]
+    if togri: u["ball"]+=10; u["togri"]+=1; u["streak"]=u.get("streak",0)+1
+    else: u["notogri"]=u.get("notogri",0)+1; u["streak"]=0
+    if u["streak"]>u.get("max_streak",0): u["max_streak"]=u["streak"]
+    u["kunlik_savol"]=u.get("kunlik_savol",0)+1
+    db["stats"]["total_answers"]=db["stats"].get("total_answers",0)+1
+    db["users"][u_str]=u; save_db(db); return u
+
+def savol_korildi(uid,s):
+    db=load_db(); u_str=str(uid)
+    if u_str in db["users"]:
+        if s not in db["users"][u_str].get("korilgan",[]): db["users"][u_str].setdefault("korilgan",[]).append(s)
+        if len(db["users"][u_str]["korilgan"])>500: db["users"][u_str]["korilgan"]=db["users"][u_str]["korilgan"][-500:]
         save_db(db)
 
-def javob_berdi(user_id, togri):
-    db = load_db(); uid = str(user_id)
-    if uid not in db["users"]: return get_user(user_id)
-    u = db["users"][uid]
-    if togri:
-        u["togri"] += 1; u["ball"] += 10; u["streak"] += 1; u["bugungi_savol"] += 1
-        if u["streak"] > u["max_streak"]: u["max_streak"] = u["streak"]
-    else:
-        u["notogri"] += 1; u["streak"] = 0; u["bugungi_savol"] += 1
-    db["stats"]["total_answers"] = db["stats"].get("total_answers", 0) + 1
-    save_db(db); return u
+def check_yutuqlar(u):
+    yangi=[]; mav=u.get("yutuqlar",[])
+    jami=u.get("togri",0)+u.get("notogri",0)
+    if jami>=1 and "birinchi" not in mav: yangi.append("birinchi")
+    if jami>=10 and "o10" not in mav: yangi.append("o10")
+    if jami>=50 and "o50" not in mav: yangi.append("o50")
+    if jami>=100 and "o100" not in mav: yangi.append("o100")
+    if u.get("streak",0)>=5 and "streak5" not in mav: yangi.append("streak5")
+    if u.get("streak",0)>=10 and "streak10" not in mav: yangi.append("streak10")
+    return yangi
 
-def get_reyting(limit=10):
-    db = load_db()
-    return sorted(db["users"].values(), key=lambda x: x["ball"], reverse=True)[:limit]
-
-def get_referral_user(kod):
-    db = load_db()
-    for u in db["users"].values():
-        if u.get("referral_kod") == kod: return u
-    return None
-
-def savol_korildi(user_id, savol_matni):
-    db = load_db(); uid = str(user_id)
-    if uid in db["users"]:
-        k = db["users"][uid].get("korilgan", [])
-        if savol_matni not in k:
-            k.append(savol_matni)
-            db["users"][uid]["korilgan"] = k[-100:]
-            save_db(db)
-
-# ══════════════════════════════════════════
-# 🎮 GAMIFIKATSIYA
-# ══════════════════════════════════════════
-DARAJALAR = [
-    (0,50,"Yangi o'quvchi"), (50,200,"O'quvchi"), (200,500,"Bilimdon"),
-    (500,1000,"Usta"), (1000,2000,"Champion"), (2000,5000,"Zakovat ustasi"), (5000,9999,"AKADEMIK"),
-]
-YUTUQLAR = {
-    "birinchi_javob": {"nom": "Birinchi qadam",  "tavsif": "Birinchi savolga javob bering"},
-    "streak_5":       {"nom": "5 streak",         "tavsif": "5 ta ketma-ket to'g'ri javob"},
-    "streak_10":      {"nom": "10 streak",         "tavsif": "10 ta ketma-ket to'g'ri javob"},
-    "ball_100":       {"nom": "100 ball",          "tavsif": "100 ball yig'ing"},
-    "ball_500":       {"nom": "500 ball",          "tavsif": "500 ball yig'ing"},
-    "ball_1000":      {"nom": "1000 ball",         "tavsif": "1000 ball yig'ing"},
-    "referral_1":     {"nom": "Do'st taklif",      "tavsif": "1 ta do'stni taklif qiling"},
-    "referral_5":     {"nom": "Jamoa",             "tavsif": "5 ta do'stni taklif qiling"},
-}
-
-def get_daraja(ball):
-    for mn, mx, nom in DARAJALAR:
-        if mn <= ball < mx: return nom
-    return "AKADEMIK"
-
-def check_yutuqlar(user):
-    mavjud = user.get("yutuqlar", [])
-    checks = {
-        "birinchi_javob": user["togri"] >= 1, "streak_5": user["max_streak"] >= 5,
-        "streak_10": user["max_streak"] >= 10, "ball_100": user["ball"] >= 100,
-        "ball_500": user["ball"] >= 500, "ball_1000": user["ball"] >= 1000,
-        "referral_1": user["referral_count"] >= 1, "referral_5": user["referral_count"] >= 5,
-    }
-    return [k for k, v in checks.items() if v and k not in mavjud]
-
-# ══════════════════════════════════════════
-# 🎨 KLAVIATURA
-# ══════════════════════════════════════════
-def main_menu(premium=False):
-    kb = [
-        [KeyboardButton("📚 O'rganish"), KeyboardButton("🏆 Reyting")],
-        [KeyboardButton("👤 Profilim"),  KeyboardButton("🎯 Tezkor test")],
-        [KeyboardButton("👥 Do'stlar"),  KeyboardButton("ℹ️ Yordam")],
-    ]
-    if premium: kb.append([KeyboardButton("📄 PDF Test"), KeyboardButton("⚙️ Sozlamalar")])
-    return ReplyKeyboardMarkup(kb, resize_keyboard=True)
-
-def sinf_menu():
-    kb, row = [], []
-    for s in range(1, 12):
-        row.append(InlineKeyboardButton(f"{s}-sinf", callback_data=f"sinf_{s}"))
-        if len(row) == 3: kb.append(row); row = []
-    if row: kb.append(row)
-    return InlineKeyboardMarkup(kb)
-
-def fanlar_menu(sinf):
-    fanlar = SINF_FANLAR.get(str(sinf), []); kb, row = [], []
-    for fan in fanlar:
-        row.append(InlineKeyboardButton(f"{FAN_EMOJI.get(fan,'📚')} {fan}", callback_data=f"fan_{sinf}_{fan}"))
-        if len(row) == 2: kb.append(row); row = []
-    if row: kb.append(row)
-    kb.append([InlineKeyboardButton("🔙 Orqaga", callback_data="back_sinf")])
-    return InlineKeyboardMarkup(kb)
-
-def savol_kb(fan, sinf, savol, idx):
-    hrf = ["A","B","C","D"]
-    return InlineKeyboardMarkup([[InlineKeyboardButton(f"{hrf[i]}) {v}", callback_data=f"j_{fan}_{sinf}_{idx}_{i}")] for i,v in enumerate(savol["v"])])
-
-# ══════════════════════════════════════════
-# 🤖 GROQ AI — CHEKSIZ SAVOLLAR
-# ══════════════════════════════════════════
-async def groq_savol_tuz(fan, sinf, soni=15):
-    if not GROQ_API_KEY or GROQ_API_KEY == "BU_YERGA_GROQ_API_KEY": return []
-    prompt = f"""Sen O'zbek maktabi uchun professional savol tuzuvchisan.
-Fan: {fan}, Sinf: {sinf}-sinf
-{soni} ta test savol tuz. {sinf}-sinf darajasiga mos bo'lsin. O'zbek tilida yoz!
-FAQAT JSON formatda javob ber, boshqa narsa yozma:
-[{{"s":"Savol matni","v":["A","B","C","D"],"t":0,"i":"Nima uchun to'g'ri - izoh"}}]
-t = to'g'ri javob indeksi (0=A, 1=B, 2=C, 3=D)"""
+async def groq_req(prompt,max_tokens=2000):
     try:
-        async with aiohttp.ClientSession() as ses:
-            async with ses.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
-                json={"model": "llama-3.3-70b-versatile", "messages": [{"role":"user","content":prompt}], "max_tokens":3000, "temperature":0.8},
-                timeout=aiohttp.ClientTimeout(total=30)
-            ) as r:
-                d = await r.json()
-                c = d["choices"][0]["message"]["content"]
-                st, en = c.find("["), c.rfind("]")+1
-                if st != -1 and en > st: return json.loads(c[st:en])
-    except Exception as e:
-        logger.error(f"Groq xatosi: {e}")
+        async with aiohttp.ClientSession() as s:
+            async with s.post("https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization":f"Bearer {GROQ_API_KEY}","Content-Type":"application/json"},
+                json={"model":"llama3-70b-8192","messages":[{"role":"user","content":prompt}],"max_tokens":max_tokens,"temperature":0.7},
+                timeout=aiohttp.ClientTimeout(total=30)) as r:
+                if r.status==200: d=await r.json(); return d["choices"][0]["message"]["content"]
+    except Exception as e: logger.error(f"Groq: {e}")
+    return ""
+
+async def get_savol(fan,sinf,uid):
+    db=load_db(); k=f"{fan}_{sinf}"
+    korilgan=db.get("users",{}).get(str(uid),{}).get("korilgan",[])
+    kesh=db.get("kesh",{}).get(k,[])
+    if len(kesh)<5:
+        prompt=f"""Sen O'zbekiston {sinf}-sinf {fan} DTM test tuzuvchisan.
+15 ta savol yoz, FAQAT JSON:
+[{{"s":"savol","v":["A","B","C","D"],"t":0,"i":"tushuntirish"}}]
+t=to'g'ri indeks(0-3), O'zbek tilida, DTM darajasida, faqat JSON"""
+        resp=await groq_req(prompt)
+        try:
+            m=re.search(r'\[.*\]',resp,re.DOTALL)
+            if m:
+                ns=json.loads(m.group()); db.setdefault("kesh",{})[k]=ns[:20]; save_db(db); kesh=db["kesh"][k]
+        except: pass
+    if kesh:
+        korilmagan=[i for i,s in enumerate(kesh) if s["s"] not in korilgan]
+        if not korilmagan: update_user(uid,{"korilgan":[]}); korilmagan=list(range(len(kesh)))
+        idx=random.choice(korilmagan); return kesh[idx],idx
+    fn=fan.replace(" va adabiyot","").replace("Algebra","Matematika").replace("Geometriya","Matematika")
+    z=ZAXIRA.get(fn,ZAXIRA.get("Matematika",[])); idx=random.randint(0,len(z)-1); return z[idx],idx
+
+async def groq_tushuntir(savol,xato,togri,fan):
+    prompt=f"""Sen {fan} DTM repetitorisin. O'quvchi xato qildi.
+Savol: {savol}
+Tanladi: {xato}
+To'g'ri: {togri}
+2-3 jumlada sodda tushuntir nima uchun {togri} to'g'ri. O'zbek tilida, faqat tushuntirish."""
+    r=await groq_req(prompt,300)
+    return r if r else f"To'g'ri javob: {togri}"
+
+async def groq_test(fan,sinf,mavzu,soni,qiyinlik):
+    qt={"oson":"oson (boshlang'ich)","urta":"o'rta (DTM standart)","qiyin":"qiyin (olimpiada)"}.get(qiyinlik,"o'rta")
+    prompt=f"""Sen {sinf}-sinf {fan} professional test tuzuvchisan.
+Mavzu: {mavzu}, Qiyinlik: {qt}, Soni: {soni}
+FAQAT JSON: [{{"s":"savol","v":["A","B","C","D"],"t":0,"i":"tushuntirish"}}]
+t=to'g'ri indeks, O'zbek tilida, {mavzu} mavzusiga oid, faqat JSON"""
+    resp=await groq_req(prompt,4000)
+    try:
+        m=re.search(r'\[.*\]',resp,re.DOTALL)
+        if m: return json.loads(m.group())[:soni]
+    except Exception as e: logger.error(f"Test: {e}")
     return []
 
-async def get_savol(fan, sinf, user_id):
-    """ASOSIY FUNKSIYA: Har doim yangi, takrorlanmas savol!"""
-    db = load_db(); k = f"{fan}_{sinf}"
-    if "kesh" not in db: db["kesh"] = {}
-    kesh = db["kesh"].get(k, [])
-
-    # Keshda 5 dan kam — Groq dan yangilash
-    if len(kesh) < 5:
-        logger.info(f"Groq: {fan} {sinf}-sinf uchun savollar yuklanmoqda...")
-        yangi = await groq_savol_tuz(fan, sinf, 15)
-        if yangi:
-            kesh = kesh + yangi
-            db["kesh"][k] = kesh[-60:]  # Max 60 ta saqlash
-            save_db(db)
-            logger.info(f"OK: {len(yangi)} ta yangi savol saqlandi!")
-
-    # Groq ishlamasa — zaxira
-    if not kesh:
-        fn = fan.replace(" va adabiyot","").replace("Algebra","Matematika").replace("Geometriya","Matematika")
-        kesh = ZAXIRA.get(fn, ZAXIRA.get("Matematika", []))
-
-    # Foydalanuvchi ko'rmagan savolni tanlash
-    uid = str(user_id)
-    korilgan = db.get("users",{}).get(uid,{}).get("korilgan",[])
-    yangi_s = [s for s in kesh if s["s"] not in korilgan]
-
-    # Hammasi ko'rilgan bo'lsa — reset
-    if not yangi_s:
-        update_user(user_id, {"korilgan": []})
-        yangi_s = kesh
-
-    savol = random.choice(yangi_s)
-    idx = kesh.index(savol) if savol in kesh else 0
-    return savol, idx
-
-# ══════════════════════════════════════════
-# 📄 PDF GENERATOR
-# ══════════════════════════════════════════
-def pdf_test_yaratish(fan, sinf, mavzu, oquvtchi, sana, savol_soni=20):
-    fn = fan.replace(" va adabiyot","").replace("Algebra","Matematika").replace("Geometriya","Matematika")
-    savollar = list(ZAXIRA.get(fn, ZAXIRA.get("Matematika",[])))
-    while len(savollar) < savol_soni: savollar = savollar + savollar
-    savollar = random.sample(savollar, min(savol_soni, len(savollar)))
-    test_s = savollar[:int(savol_soni*0.7)]; ochiq_s = savollar[int(savol_soni*0.7):]
-    test_son = len(test_s); ochiq_son = len(ochiq_s)
-
-    fname = f"/tmp/test_{fan}_{sinf}_{datetime.now().strftime('%H%M%S')}.pdf"
-    KOK=colors.HexColor('#1a3a6b'); OCH=colors.HexColor('#e8f0fe')
-    YASHIL=colors.HexColor('#27ae60'); KULRANG=colors.HexColor('#7f8c8d'); OCHIQ=colors.HexColor('#f5f5f5')
-
-    doc=SimpleDocTemplate(fname,pagesize=A4,rightMargin=2*cm,leftMargin=2*cm,topMargin=2*cm,bottomMargin=2*cm)
+def pdf_oddiy(fan,sinf,mavzu,savollar,ustoz=""):
+    fname=f"oddiy_{fan}_{sinf}.pdf"
+    doc=SimpleDocTemplate(fname,pagesize=A4,topMargin=2*cm,bottomMargin=2*cm)
     st=getSampleStyleSheet()
-    ts=ParagraphStyle('T',parent=st['Normal'],fontSize=18,textColor=KOK,alignment=TA_CENTER,spaceAfter=6,fontName='Helvetica-Bold')
-    ss=ParagraphStyle('S',parent=st['Normal'],fontSize=11,textColor=KULRANG,alignment=TA_CENTER,spaceAfter=4)
-    hs=ParagraphStyle('H',parent=st['Normal'],fontSize=12,textColor=colors.white,spaceBefore=10,spaceAfter=6,fontName='Helvetica-Bold',leftIndent=6)
-    qs=ParagraphStyle('Q',parent=st['Normal'],fontSize=11,textColor=KOK,spaceBefore=8,spaceAfter=4,fontName='Helvetica-Bold')
-    os_=ParagraphStyle('O',parent=st['Normal'],fontSize=10.5,leftIndent=20,spaceAfter=2)
-    is_=ParagraphStyle('I',parent=st['Normal'],fontSize=10)
-
-    story=[]
-    story+=[Paragraph("ZakovatBot — Ta'lim platformasi",ss),Paragraph(f"{fan.upper()} — {sinf}-SINF",ts),
-            Paragraph(f"Mavzu: {mavzu}",ss),Spacer(1,0.3*cm),HRFlowable(width="100%",thickness=2,color=KOK),Spacer(1,0.3*cm)]
-
-    inf=Table([[Paragraph(f"<b>Sinf:</b> {sinf}",is_),Paragraph(f"<b>Fan:</b> {fan}",is_),Paragraph(f"<b>Sana:</b> {sana}",is_)],
-               [Paragraph(f"<b>Oqituvchi:</b> {oquvtchi}",is_),Paragraph(f"<b>Savol:</b> {savol_soni} ta",is_),Paragraph("<b>Ism:</b> ___________",is_)]],colWidths=[5.5*cm]*3)
-    inf.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),OCHIQ),('GRID',(0,0),(-1,-1),0.5,colors.lightgrey),('PADDING',(0,0),(-1,-1),8)]))
-    story+=[inf,Spacer(1,0.4*cm)]
-
-    h1=Table([[Paragraph(f"  I QISM — TEST ({test_son} ta x 7 ball = {test_son*7} ball)",hs)]],colWidths=[16.5*cm])
-    h1.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),KOK),('PADDING',(0,0),(-1,-1),8)]))
-    story+=[h1,Spacer(1,0.3*cm)]
-
-    def qblock(ql, start):
-        b=[]; hrf=["A","B","C","D"]
-        for i,q in enumerate(ql,start):
-            b.append(Paragraph(f"<b>{i}.</b> {q['s']}",qs))
-            for j,v in enumerate(q["v"]): b.append(Paragraph(f"{hrf[j]}) {v}",os_))
-            b.append(Spacer(1,0.15*cm))
-        return b
-
-    ym=len(test_s)//2
-    tbl=Table([[qblock(test_s[:ym],1),qblock(test_s[ym:],ym+1)]],colWidths=[8*cm,8*cm])
-    tbl.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('LINEAFTER',(0,0),(0,-1),0.5,colors.lightgrey),('LEFTPADDING',(1,0),(1,-1),12),('RIGHTPADDING',(0,0),(0,-1),12)]))
-    story+=[tbl,Spacer(1,0.4*cm),Paragraph("<b>Javoblar jadvali:</b>",is_),Spacer(1,0.1*cm)]
-
-    hd=[Paragraph(f"<b>{i}</b>",ParagraphStyle('c',parent=st['Normal'],alignment=TA_CENTER,fontSize=10,fontName='Helvetica-Bold')) for i in range(1,test_son+1)]
-    an=[Paragraph("____",ParagraphStyle('a',parent=st['Normal'],alignment=TA_CENTER,fontSize=12)) for _ in range(test_son)]
-    for cs in range(0,test_son,10):
-        ce=min(cs+10,test_son); n=ce-cs; w=16.5/n
-        jt=Table([hd[cs:ce],an[cs:ce]],colWidths=[w*cm]*n)
-        jt.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.5,colors.grey),('BACKGROUND',(0,0),(-1,0),OCH),('ALIGN',(0,0),(-1,-1),'CENTER'),('PADDING',(0,0),(-1,-1),6)]))
-        story+=[jt,Spacer(1,0.15*cm)]
-
-    if ochiq_s:
-        h2=Table([[Paragraph(f"  II QISM — OCHIQ SAVOLLAR ({ochiq_son} ta)",hs)]],colWidths=[16.5*cm])
-        h2.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),YASHIL),('PADDING',(0,0),(-1,-1),8)]))
-        story+=[Spacer(1,0.3*cm),h2,Spacer(1,0.3*cm)]
-        for i,q in enumerate(ochiq_s,1):
-            story.append(Paragraph(f"<b>{i}.</b> {q['s']}",qs))
-            for _ in range(4): story.append(HRFlowable(width="100%",thickness=0.5,color=colors.lightgrey,spaceAfter=14))
-            story.append(Spacer(1,0.2*cm))
-
-    story+=[HRFlowable(width="100%",thickness=1,color=KOK),Spacer(1,0.2*cm),
-            Table([[Paragraph("<i>ZakovatBot tomonidan | @ZakovatEduBot</i>",ParagraphStyle('f',parent=st['Normal'],fontSize=8,textColor=KULRANG,fontName='Helvetica-Oblique')),
-                    Paragraph(f"<i>{sana}</i>",ParagraphStyle('f2',parent=st['Normal'],fontSize=8,textColor=KULRANG,alignment=1,fontName='Helvetica-Oblique'))]],colWidths=[10*cm,6.5*cm])]
-
-    story.append(PageBreak())
-    story+=[Paragraph("JAVOBLAR — FAQAT O'QITUVCHI UCHUN",ts),Paragraph(f"{fan} | {sinf}-sinf | {mavzu}",ss),
-            Spacer(1,0.3*cm),HRFlowable(width="100%",thickness=2,color=KOK),Spacer(1,0.4*cm)]
+    ts=ParagraphStyle("t",fontSize=15,alignment=TA_CENTER,spaceAfter=5,fontName="Helvetica-Bold")
+    ss=ParagraphStyle("s",fontSize=10,alignment=TA_CENTER,spaceAfter=3)
+    bs=ParagraphStyle("b",fontSize=11,spaceAfter=3,fontName="Helvetica")
+    bold=ParagraphStyle("bo",fontSize=11,spaceAfter=2,fontName="Helvetica-Bold")
+    story=[Paragraph(f"{fan} — {sinf}-sinf",ts),Paragraph(f"Mavzu: {mavzu}",ss)]
+    if ustoz: story.append(Paragraph(f"O'qituvchi: {ustoz}",ss))
+    story+=[Paragraph(f"Savollar: {len(savollar)} ta | Sana: {date.today()}",ss),
+            HRFlowable(width="100%",thickness=1,color=colors.black,spaceAfter=8)]
     hrf=["A","B","C","D"]
-    ch=[Paragraph(f"<b>{i}</b>",ParagraphStyle('ch',parent=st['Normal'],alignment=TA_CENTER,fontSize=10,fontName='Helvetica-Bold')) for i in range(1,test_son+1)]
-    ca=[Paragraph(f"<b><font color='#27ae60'>{hrf[q['t']]}</font></b>",ParagraphStyle('ca',parent=st['Normal'],alignment=TA_CENTER,fontSize=14,fontName='Helvetica-Bold')) for q in test_s]
-    for cs in range(0,test_son,10):
-        ce=min(cs+10,test_son); n=ce-cs; w=16.5/n
-        ct=Table([ch[cs:ce],ca[cs:ce]],colWidths=[w*cm]*n)
-        ct.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.5,colors.grey),('BACKGROUND',(0,0),(-1,0),KOK),('TEXTCOLOR',(0,0),(-1,0),colors.white),('BACKGROUND',(0,1),(-1,1),colors.HexColor('#e8fce8')),('ALIGN',(0,0),(-1,-1),'CENTER'),('PADDING',(0,0),(-1,-1),8)]))
-        story+=[ct,Spacer(1,0.2*cm)]
+    for i,s in enumerate(savollar):
+        story.append(Paragraph(f"{i+1}. {s['s']}",bold))
+        for j,v in enumerate(s["v"]): story.append(Paragraph(f"   {hrf[j]}) {v}",bs))
+        story.append(Spacer(1,5))
+    story+=[HRFlowable(width="100%",thickness=0.5,color=colors.grey,spaceBefore=8),
+            Paragraph("Omad! | @ZakovatEduBot",ss)]
+    doc.build(story); return fname
 
-    doc.build(story)
-    return fname
+def pdf_professional(fan,sinf,mavzu,savollar,ustoz="",maktab=""):
+    fname=f"pro_{fan}_{sinf}.pdf"
+    ko=colors.HexColor("#1a237e"); yq=colors.HexColor("#e8eaf6")
+    doc=SimpleDocTemplate(fname,pagesize=A4,topMargin=1.5*cm,bottomMargin=1.5*cm,leftMargin=2*cm,rightMargin=2*cm)
+    ts=ParagraphStyle("t",fontSize=16,alignment=TA_CENTER,spaceAfter=4,fontName="Helvetica-Bold",textColor=ko)
+    ss=ParagraphStyle("s",fontSize=10,alignment=TA_CENTER,spaceAfter=3)
+    bs=ParagraphStyle("b",fontSize=10,spaceAfter=3)
+    bold=ParagraphStyle("bo",fontSize=10,spaceAfter=2,fontName="Helvetica-Bold")
+    sm=ParagraphStyle("sm",fontSize=8,alignment=TA_CENTER,textColor=colors.grey)
+    story=[]
+    info=[[Paragraph(f"<b>{fan} | {sinf}-sinf</b>",ParagraphStyle("",fontSize=13,fontName="Helvetica-Bold",textColor=ko)),
+           Paragraph(f"<b>Mavzu: {mavzu}</b>",ParagraphStyle("",fontSize=11,fontName="Helvetica-Bold"))],
+          [Paragraph(f"Maktab: {maktab or '___________'}",bs),Paragraph(f"Sana: {date.today()}",bs)],
+          [Paragraph(f"O'qituvchi: {ustoz or '___________'}",bs),
+           Paragraph(f"Savollar: {len(savollar)} ta | Vaqt: {len(savollar)*2} daq",bs)]]
+    it=Table(info,colWidths=[8.5*cm,8.5*cm])
+    it.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),yq),("GRID",(0,0),(-1,-1),0.5,colors.grey),("PADDING",(0,0),(-1,-1),6)]))
+    story.append(it); story.append(Spacer(1,6))
+    ot=Table([["Familiya, Ism:","___________________________________","Sinf:","_______","Ball:","_______"]],
+             colWidths=[3*cm,6*cm,1.5*cm,2*cm,1.5*cm,3*cm])
+    ot.setStyle(TableStyle([("GRID",(0,0),(-1,-1),0.5,colors.black),("PADDING",(0,0),(-1,-1),5),
+        ("FONTNAME",(0,0),(-1,-1),"Helvetica-Bold"),("FONTSIZE",(0,0),(-1,-1),9),
+        ("BACKGROUND",(0,0),(0,0),yq),("BACKGROUND",(2,0),(2,0),yq),("BACKGROUND",(4,0),(4,0),yq)]))
+    story.append(ot); story.append(Spacer(1,8))
+    story.append(HRFlowable(width="100%",thickness=1.5,color=ko,spaceAfter=6))
+    hrf=["A","B","C","D"]; col1=[]; col2=[]
+    for i,s in enumerate(savollar):
+        b=[Paragraph(f"<b>{i+1}.</b> {s['s']}",bold)]
+        for j,v in enumerate(s["v"]): b.append(Paragraph(f"   <b>{hrf[j]})</b> {v}",bs))
+        b.append(Spacer(1,4))
+        (col1 if i%2==0 else col2).extend(b)
+    if col2:
+        tc=Table([[col1,col2]],colWidths=[8.5*cm,8.5*cm])
+        tc.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("PADDING",(0,0),(-1,-1),3)])); story.append(tc)
+    else: story.extend(col1)
+    story.append(PageBreak()); story.append(Paragraph("JAVOBLAR JADVALI",ts))
+    story.append(HRFlowable(width="100%",thickness=1.5,color=ko,spaceAfter=8))
+    rows=[["№","Javob","№","Javob","№","Javob","№","Javob","№","Javob"]]
+    chunk=[savollar[i:i+5] for i in range(0,len(savollar),5)]
+    for ri,ch in enumerate(chunk):
+        row=[]
+        for ci,s in enumerate(ch):
+            row+=[str(ri*5+ci+1),hrf[s.get("t",0)]]
+        while len(row)<10: row.append("")
+        rows.append(row)
+    jt=Table(rows,colWidths=[1*cm,2.5*cm]*5)
+    jt.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),ko),("TEXTCOLOR",(0,0),(-1,0),colors.white),
+        ("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("ALIGN",(0,0),(-1,-1),"CENTER"),
+        ("GRID",(0,0),(-1,-1),0.5,colors.grey),("PADDING",(0,0),(-1,-1),5),
+        ("ROWBACKGROUNDS",(0,1),(-1,-1),[colors.white,colors.HexColor("#f5f5f5")])]))
+    story+=[jt,Spacer(1,10),Paragraph(f"ZakovatEduBot | {date.today()}",sm)]
+    doc.build(story); return fname
 
-# ══════════════════════════════════════════
-# 📨 BUYRUQLAR
-# ══════════════════════════════════════════
-async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user=update.effective_user; u=get_user(user.id,user.first_name,user.username or "")
-    if context.args:
-        ref=context.args[0]
-        if ref.startswith("REF") and ref != u["referral_kod"]:
-            ru=get_referral_user(ref)
-            if ru:
-                update_user(ru["id"],{"referral_count":ru["referral_count"]+1,"ball":ru["ball"]+100})
-                update_user(user.id,{"ball":u["ball"]+50})
-                await update.message.reply_text("Taklif orqali keldingiz! +50 ball!")
-    st=f"{u['sinf']}-sinf" if u["sinf"] else "tanlanmagan"
-    await update.message.reply_text(
-        f"*Xush kelibsiz, {user.first_name}!*\nMen — *ZakovatBot* — AI o'qituvchingiz!\n\nSinf: {st} | Ball: {u['ball']} | {get_daraja(u['ball'])}\n\n1-11 sinf - CHEKSIZ AI savollar - PDF test",
-        parse_mode="Markdown", reply_markup=main_menu(u["premium"]))
-    if not u["sinf"]:
-        await update.message.reply_text("*Qaysi sinfda o'qaysiz?*", parse_mode="Markdown", reply_markup=sinf_menu())
+def main_menu(premium=False,role="student"):
+    btns=[[KeyboardButton("📚 O'rganish"),KeyboardButton("🏆 Reyting")],
+          [KeyboardButton("👤 Profilim"),KeyboardButton("🎯 Tezkor test")],
+          [KeyboardButton("👥 Do'stlar"),KeyboardButton("ℹ️ Yordam")]]
+    if premium: btns.append([KeyboardButton("📄 PDF Test")])
+    if role in("teacher","admin") or is_teacher(0): btns.append([KeyboardButton("👨‍🏫 O'qituvchi panel")])
+    if role=="admin": btns.append([KeyboardButton("⚙️ Admin panel")])
+    return ReplyKeyboardMarkup(btns,resize_keyboard=True)
 
-async def profile_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user=update.effective_user; u=get_user(user.id,user.first_name)
-    jami=u["togri"]+u["notogri"]; foiz=round(u["togri"]/jami*100) if jami else 0
-    await update.message.reply_text(
-        f"*{user.first_name}*\n{get_daraja(u['ball'])} | {u['ball']} ball\n\nTo'g'ri: {u['togri']} | Notogri: {u['notogri']} | {foiz}%\nStreak: {u['streak']} (Max: {u['max_streak']})\nBugun: {u['bugungi_savol']} ta | Yutuq: {len(u.get('yutuqlar',[]))} ta",
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Yutuqlar",callback_data="yutuqlar"),InlineKeyboardButton("Sinf ozgartir",callback_data="sinf_ozgartir")]]))
+def main_menu_uid(uid):
+    u=get_user(uid); return main_menu(u.get("premium",False),u.get("role","student"))
 
-async def reyting_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    users=get_reyting(10); text="*TOP-10 REYTING*\n\n"
-    medals=["1","2","3"]
-    for i,u in enumerate(users,1):
-        m=medals[i-1] if i<=3 else f"{i}."
-        text+=f"{m}. {u['ism']} — *{u['ball']}* ball\n"
-    await update.message.reply_text(text, parse_mode="Markdown")
+def sinf_menu():
+    rows=[]; row=[]
+    for i in range(1,12):
+        row.append(InlineKeyboardButton(f"{i}-sinf",callback_data=f"sinf_{i}"))
+        if len(row)==4: rows.append(row); row=[]
+    if row: rows.append(row)
+    return InlineKeyboardMarkup(rows)
 
-async def dostlar_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def fanlar_menu(sinf):
+    fanlar=SINF_FANLAR.get(str(sinf),[])
+    rows=[]; row=[]
+    for f in fanlar:
+        row.append(InlineKeyboardButton(f"{FAN_EMOJI.get(f,'📚')} {f}",callback_data=f"fan_{sinf}_{f}"))
+        if len(row)==2: rows.append(row); row=[]
+    if row: rows.append(row)
+    rows.append([InlineKeyboardButton("🔙 Orqaga",callback_data="back_sinf")])
+    return InlineKeyboardMarkup(rows)
+
+def savol_kb(fan,sinf,savol,idx):
+    hrf=["A","B","C","D"]
+    btns=[[InlineKeyboardButton(f"{hrf[i]}) {v}",callback_data=f"j_{fan}_{sinf}_{idx}_{i}")] for i,v in enumerate(savol["v"])]
+    btns.append([InlineKeyboardButton("▶️ Keyingi",callback_data=f"fan_{sinf}_{fan}"),
+                 InlineKeyboardButton("📚 Fanlar",callback_data=f"sinf_{sinf}")])
+    return InlineKeyboardMarkup(btns)
+
+async def start_cmd(update:Update,context:ContextTypes.DEFAULT_TYPE):
+    user=update.effective_user; args=context.args; ref_by=None
+    if args and args[0].startswith("REF"):
+        try: ref_by=int(args[0].replace("REF",""))
+        except: pass
+    u=get_user(user.id,user.first_name,user.username or "")
+    if ref_by and ref_by!=user.id and not u.get("ref_by"):
+        update_user(user.id,{"ref_by":ref_by})
+        db=load_db(); ruid=str(ref_by)
+        if ruid in db["users"]:
+            db["users"][ruid]["referral"]=db["users"][ruid].get("referral",0)+1
+            db["users"][ruid]["ball"]=db["users"][ruid].get("ball",0)+20; save_db(db)
+            try: await context.bot.send_message(ref_by,"🎉 Do'stingiz qo'shildi! +20 ball!")
+            except: pass
+    role=u.get("role","student")
+    txt=(f"🎓 Xush kelibsiz, *{user.first_name}*!\nMen — *ZakovatEduBot* — AI o'qituvchingiz!\n\n"
+         f"{'💎 Premium' if u.get('premium') else '🆓 Bepul'} | Sinf: {u['sinf'] or '?'} | Ball: {u['ball']}\n"
+         f"Bugun: {u.get('kunlik_savol',0)}/{BEPUL_LIMIT if not u.get('premium') else '∞'} savol\n\n"
+         f"1-11 sinf — CHEKSIZ AI savollar! 🚀")
+    await update.message.reply_text(txt,parse_mode="Markdown",reply_markup=main_menu(u.get("premium"),role))
+
+async def profile_cmd(update:Update,context:ContextTypes.DEFAULT_TYPE):
     user=update.effective_user; u=get_user(user.id)
-    bot=await context.bot.get_me()
+    jami=u.get("togri",0)+u.get("notogri",0); foiz=round(u["togri"]/jami*100) if jami>0 else 0
+    bars="🟦"*min(foiz//10,10)+"⬜"*(10-min(foiz//10,10))
+    txt=(f"👤 *{user.first_name}*\n{'💎 Premium' if u.get('premium') else '🆓 Bepul'} | "
+         f"{'👨‍🏫 O\'qituvchi' if is_teacher(user.id) else '🎓 O\'quvchi'}\n\n"
+         f"🏫 Sinf: {u['sinf'] or '?'}\n💎 Ball: *{u['ball']}*\n"
+         f"✅ To'g'ri: {u.get('togri',0)} | ❌ Noto'g'ri: {u.get('notogri',0)}\n"
+         f"📊 O'zlashtirish: {foiz}%\n{bars}\n"
+         f"🔥 Streak: {u.get('streak',0)} | Max: {u.get('max_streak',0)}\n"
+         f"📅 Bugun: {u.get('kunlik_savol',0)} ta\n"
+         f"👥 Taklif: {u.get('referral',0)} | 🏆 Yutuq: {len(u.get('yutuqlar',[]))}/{len(YUTUQLAR)}")
+    kb=InlineKeyboardMarkup([[InlineKeyboardButton("🏆 Yutuqlar",callback_data="yutuqlar"),
+        InlineKeyboardButton("↕️ Sinf o'zgartir",callback_data="sinf_ozgartir")],
+        [InlineKeyboardButton("💎 Premium",callback_data="premium_info")]])
+    await update.message.reply_text(txt,parse_mode="Markdown",reply_markup=kb)
+
+async def reyting_cmd(update:Update,context:ContextTypes.DEFAULT_TYPE):
+    db=load_db(); users=[(uid,u) for uid,u in db["users"].items() if u.get("ball",0)>0]
+    users.sort(key=lambda x:x[1].get("ball",0),reverse=True); top=users[:10]
+    medal=["🥇","🥈","🥉","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣","🔟"]
+    uid_str=str(update.effective_user.id); txt="🏆 *TOP 10*\n\n"
+    for i,(uid,u) in enumerate(top):
+        me=" ← Siz" if uid==uid_str else ""
+        txt+=f"{medal[i]} {u.get('ism','?')} — *{u.get('ball',0)}* ball{me}\n"
+    my_pos=next((i+1 for i,(uid,_) in enumerate(users) if uid==uid_str),None)
+    if my_pos and my_pos>10: txt+=f"\n📍 Sizning o'rningiz: *{my_pos}*"
+    if not users: txt="🏆 *REYTING*\n\nHali hech kim yo'q! Birinchi bo'ling! 🚀"
+    await update.message.reply_text(txt,parse_mode="Markdown")
+
+async def dostlar_cmd(update:Update,context:ContextTypes.DEFAULT_TYPE):
+    user=update.effective_user; u=get_user(user.id)
+    link=f"https://t.me/ZakovatEduBot?start=REF{user.id}"
+    txt=(f"👥 *DO'STLARNI TAKLIF QILING!*\n\nHar do'st: *+20 ball* 🎁\n"
+         f"Taklif: *{u.get('referral',0)} kishi* | Bonus: *{u.get('referral',0)*20} ball*\n\n🔗 `{link}`")
+    kb=InlineKeyboardMarkup([[InlineKeyboardButton("📤 Ulashish",
+        url=f"https://t.me/share/url?url={link}&text=ZakovatEduBot+bilan+o'qiyman!")]])
+    await update.message.reply_text(txt,parse_mode="Markdown",reply_markup=kb)
+
+async def yordam_cmd(update:Update,context:ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        f"*DO'STLARNI TAKLIF QILING!*\nTaklif: {u['referral_count']} kishi | Bonus: {u['referral_count']*100} ball\n\nHavolangiz:\nhttps://t.me/{bot.username}?start={u['referral_kod']}",
-        parse_mode="Markdown")
+        "📖 *YORDAM*\n\n📚 O'rganish — Test ishlang\n🎯 Tezkor test — Tez boshlang\n"
+        "🏆 Reyting — Top o'quvchilar\n👤 Profilim — Statistika\n"
+        "👨‍🏫 O'qituvchi panel — Test yarat, PDF ol\n\n"
+        "💎 *Premium:* Cheksiz savol, PDF, Statistika\n"
+        "O'quvchi: 19,000 so'm/oy | O'qituvchi: 49,000 so'm/oy\n\n"
+        "📞 @ZakovatSupport",parse_mode="Markdown")
 
-async def yordam_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "*YORDAM*\n/start /profile /reyting\n\nSinfni tanlang, Fan tanlang, Javob bering, Ball yiging!\nHar safar YANGI AI savol!\nPDF test — Premium uchun\n\n@ZakovatSupport",
-        parse_mode="Markdown")
-
-# ══════════════════════════════════════════
-# 📩 XABARLAR
-# ══════════════════════════════════════════
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text=update.message.text; user=update.effective_user; u=get_user(user.id,user.first_name)
-
-    if text == "📚 O'rganish":
-        if not u.get("sinf"):
-            await update.message.reply_text("*Avval sinfingizni tanlang!*", parse_mode="Markdown", reply_markup=sinf_menu())
-        else:
-            await update.message.reply_text(f"*{u['sinf']}-sinf fanlari:*", parse_mode="Markdown", reply_markup=fanlar_menu(u["sinf"]))
-
-    elif text == "🎯 Tezkor test":
-        sinf=u.get("sinf","7"); fan=random.choice(SINF_FANLAR.get(str(sinf),["Matematika"]))
-        await update.message.reply_text("AI savol tayyorlamoqda...")
-        savol,idx=await get_savol(fan,str(sinf),user.id)
-        await update.message.reply_text(f"{FAN_EMOJI.get(fan,'📚')} *{fan}* | {sinf}-sinf\n\n*{savol['s']}*\n\nJavobni tanlang:",
-            parse_mode="Markdown", reply_markup=savol_kb(fan,str(sinf),savol,idx))
-
-    elif text == "🏆 Reyting": await reyting_cmd(update, context)
-    elif text == "👤 Profilim": await profile_cmd(update, context)
-    elif text == "👥 Do'stlar": await dostlar_cmd(update, context)
-    elif text == "ℹ️ Yordam": await yordam_cmd(update, context)
-
-    elif text == "📄 PDF Test":
-        if not u["premium"] and user.id != ADMIN_ID:
-            await update.message.reply_text("Bu funksiya PREMIUM foydalanuvchilar uchun!")
-        else:
-            context.user_data["pdf_bosqich"]="sinf"
-            await update.message.reply_text("*PDF Test — Sinf tanlang:*", parse_mode="Markdown", reply_markup=sinf_menu())
-
-    elif text == "⚙️ Sozlamalar":
-        db=load_db()
-        await update.message.reply_text(
-            f"*SOZLAMALAR*\nID: {user.id} | Sinf: {u['sinf'] or '?'} | Premium: {'Ha' if u['premium'] else 'Yoq'}\nJami: {db['stats']['total_users']} foydalanuvchi",
-            parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Sinf ozgartir",callback_data="sinf_ozgartir")],[InlineKeyboardButton("Premium olish",callback_data="premium_info")]]))
-
-    elif context.user_data.get("pdf_bosqich")=="mavzu":
-        context.user_data["pdf_mavzu"]=text; context.user_data["pdf_bosqich"]="soni"
-        await update.message.reply_text(f"Mavzu: *{text}*\n\nNechta savol?", parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("10 ta",callback_data="pdf_soni_10"),InlineKeyboardButton("20 ta",callback_data="pdf_soni_20"),InlineKeyboardButton("30 ta",callback_data="pdf_soni_30")]]))
+async def teacher_panel_cmd(update:Update,context:ContextTypes.DEFAULT_TYPE):
+    user=update.effective_user
+    if is_teacher(user.id) or user.id==ADMIN_ID:
+        t=get_teacher(user.id); can,qoldi=can_teacher_test(user.id)
+        premium=t.get("premium",False) or user.id==ADMIN_ID
+        txt=(f"👨‍🏫 *O'QITUVCHI PANEL*\n\nSalom, *{user.first_name}*!\n"
+             f"{'💎 Premium' if premium else '🆓 Bepul'} o'qituvchi\n\n"
+             f"Bugun yaratildi: {TEACHER_LIMIT-qoldi if not premium else '∞'} ta\n"
+             f"Qoldi: *{qoldi if not premium else '∞'}* ta")
+        kb=ReplyKeyboardMarkup([[KeyboardButton("✏️ Yangi test"),KeyboardButton("📁 Mening testlarim")],
+            [KeyboardButton("📊 Statistika"),KeyboardButton("💎 Premium")],
+            [KeyboardButton("🔙 Orqaga")]],resize_keyboard=True)
+        await update.message.reply_text(txt,parse_mode="Markdown",reply_markup=kb)
     else:
-        await update.message.reply_text("Tugmalardan foydalaning!", reply_markup=main_menu(u["premium"]))
+        db=load_db(); uid=str(user.id)
+        if uid in db.get("teacher_req",{}):
+            await update.message.reply_text("⏳ *Arizangiz ko'rib chiqilmoqda!*",parse_mode="Markdown")
+        else:
+            context.user_data["teacher_ariza"]=True
+            await update.message.reply_text(
+                "👨‍🏫 *O'QITUVCHI PANELI*\n\nAriza berish uchun to'liq ism va maktabingizni yozing:\n"
+                "_Misol: Sardor Karimov, 45-maktab, Toshkent_",parse_mode="Markdown")
 
-# ══════════════════════════════════════════
-# 🔘 CALLBACK HANDLER
-# ══════════════════════════════════════════
-async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q=update.callback_query; await q.answer()
-    data=q.data; user=update.effective_user; u=get_user(user.id,user.first_name)
+async def handle_message(update:Update,context:ContextTypes.DEFAULT_TYPE):
+    user=update.effective_user; txt=update.message.text
+    u=get_user(user.id,user.first_name,user.username or ""); role=u.get("role","student")
 
-    # SINF
-    if data.startswith("sinf_") and not data.startswith("sinf_ozgartir"):
+    if context.user_data.get("teacher_ariza"):
+        context.user_data.pop("teacher_ariza")
+        db=load_db(); uid=str(user.id)
+        db.setdefault("teacher_req",{})[uid]={"ism":user.first_name,"username":user.username or "","user_id":user.id,"malumot":txt,"sana":str(date.today())}
+        save_db(db)
+        await update.message.reply_text("✅ *Ariza qabul qilindi! Admin tez orada javob beradi.*",parse_mode="Markdown")
+        if ADMIN_ID:
+            try:
+                await context.bot.send_message(ADMIN_ID,
+                    f"👨‍🏫 *Yangi ariza!*\n👤 {user.first_name} | @{user.username or 'yoq'}\n🆔 {user.id}\n📝 {txt}",
+                    parse_mode="Markdown",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("✅ Tasdiqlash",callback_data=f"approve_{user.id}"),
+                        InlineKeyboardButton("❌ Rad",callback_data=f"reject_{user.id}")]]))
+            except: pass
+        return
+
+    if context.user_data.get("test_bosqich")=="mavzu":
+        context.user_data["test_mavzu"]=txt; context.user_data["test_bosqich"]="qiyinlik"
+        await update.message.reply_text(
+            f"📚 {context.user_data.get('test_fan')} | {context.user_data.get('test_sinf')}-sinf\n📝 Mavzu: *{txt}*\n\n3️⃣ Qiyinlik:",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🟢 Oson",callback_data="qiyin_oson"),
+                InlineKeyboardButton("🟡 O'rta",callback_data="qiyin_urta"),
+                InlineKeyboardButton("🔴 Qiyin",callback_data="qiyin_qiyin")]])); return
+
+    if context.user_data.get("test_bosqich")=="maktab":
+        context.user_data["test_maktab"]=txt if txt!="-" else ""
+        await _gen_test(update,context); return
+
+    if context.user_data.get("pdf_bosqich")=="mavzu":
+        context.user_data["pdf_mavzu"]=txt; context.user_data["pdf_bosqich"]="soni"
+        await update.message.reply_text(f"Mavzu: *{txt}*\n\nNechta savol?",parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("10",callback_data="pdf_soni_10"),
+                InlineKeyboardButton("20",callback_data="pdf_soni_20"),
+                InlineKeyboardButton("30",callback_data="pdf_soni_30")]])); return
+
+    if txt=="📚 O'rganish":
+        await update.message.reply_text("🏫 *Sinf tanlang:*",parse_mode="Markdown",reply_markup=sinf_menu())
+    elif txt=="🎯 Tezkor test":
+        sinf=u.get("sinf","9") or "9"; can,_=can_savol(user.id)
+        if not can:
+            await update.message.reply_text(f"⏰ *Limit tugadi!* ({BEPUL_LIMIT}/kun)\n💎 Premium: 19,000 so'm/oy\n@ZakovatSupport",parse_mode="Markdown"); return
+        fan=random.choice(SINF_FANLAR.get(str(sinf),SINF_FANLAR["9"]))
+        await update.message.reply_text("⚡ AI savol tayyorlamoqda...")
+        savol,idx=await get_savol(fan,sinf,user.id)
+        await update.message.reply_text(f"{FAN_EMOJI.get(fan,'📚')} *{fan}* | {sinf}-sinf\n\n*{savol['s']}*\n\nJavob:",
+            parse_mode="Markdown",reply_markup=savol_kb(fan,str(sinf),savol,idx))
+    elif txt=="🏆 Reyting": await reyting_cmd(update,context)
+    elif txt=="👤 Profilim": await profile_cmd(update,context)
+    elif txt=="👥 Do'stlar": await dostlar_cmd(update,context)
+    elif txt=="ℹ️ Yordam": await yordam_cmd(update,context)
+    elif txt=="👨‍🏫 O'qituvchi panel": await teacher_panel_cmd(update,context)
+    elif txt=="✏️ Yangi test":
+        if not is_teacher(user.id) and user.id!=ADMIN_ID: return
+        can,qoldi=can_teacher_test(user.id)
+        if not can:
+            await update.message.reply_text(f"❌ Kunlik limit! ({TEACHER_LIMIT}/kun)\n💎 Premium: 49,000 so'm/oy",parse_mode="Markdown"); return
+        context.user_data["test_bosqich"]="sinf"
+        await update.message.reply_text("✏️ *YANGI TEST*\n\n1️⃣ Sinf tanlang:",parse_mode="Markdown",reply_markup=sinf_menu())
+    elif txt=="📁 Mening testlarim":
+        if not is_teacher(user.id) and user.id!=ADMIN_ID: return
+        db=load_db(); t=db.get("teachers",{}).get(str(user.id),{}); tl=t.get("testlar",[])
+        if not tl: await update.message.reply_text("📁 Hali test yo'q!"); return
+        res="📁 *MENING TESTLARIM*\n\n"
+        for i,ti in enumerate(tl[-10:]):
+            res+=f"{i+1}. {ti.get('fan')} | {ti.get('sinf')}-sinf | {ti.get('soni')} ta | {ti.get('sana')}\n"
+        await update.message.reply_text(res,parse_mode="Markdown")
+    elif txt=="📊 Statistika":
+        if not is_teacher(user.id) and user.id!=ADMIN_ID: return
+        db=load_db(); t=db.get("teachers",{}).get(str(user.id),{})
+        await update.message.reply_text(
+            f"📊 *STATISTIKA*\n\nJami testlar: {len(t.get('testlar',[]))}\nBugun: {t.get('bugun_test',0)} ta",parse_mode="Markdown")
+    elif txt in("💎 Premium","💎 Premium olish"):
+        await update.message.reply_text(
+            "💎 *PREMIUM*\n\n👨‍🎓 O'quvchi: 19,000 so'm/oy\n• Cheksiz savol\n• PDF test\n\n"
+            "👨‍🏫 O'qituvchi: 49,000 so'm/oy\n• Cheksiz test\n• Professional PDF (40-50 savol)\n\n📞 @ZakovatSupport",parse_mode="Markdown")
+    elif txt=="🔙 Orqaga":
+        await update.message.reply_text("Asosiy menyu:",reply_markup=main_menu_uid(user.id))
+    elif txt=="📄 PDF Test":
+        if not u.get("premium") and user.id!=ADMIN_ID:
+            await update.message.reply_text("💎 Bu Premium uchun!\n19,000 so'm/oy | @ZakovatSupport"); return
+        context.user_data["pdf_bosqich"]="sinf"
+        await update.message.reply_text("📄 *PDF Test — Sinf:*",parse_mode="Markdown",reply_markup=sinf_menu())
+    elif txt=="⚙️ Admin panel":
+        if user.id!=ADMIN_ID: return
+        db=load_db(); reqs=db.get("teacher_req",{})
+        txt2=(f"⚙️ *ADMIN*\n👥 Foydalanuvchi: {db['stats'].get('total_users',0)}\n"
+              f"📊 Javoblar: {db['stats'].get('total_answers',0)}\n"
+              f"👨‍🏫 O'qituvchilar: {len(db.get('teachers',{}))}\n⏳ Arizalar: {len(reqs)}")
+        btns=[]
+        if reqs: btns.append([InlineKeyboardButton(f"👨‍🏫 Arizalar ({len(reqs)})",callback_data="admin_arizalar")])
+        await update.message.reply_text(txt2,parse_mode="Markdown",reply_markup=InlineKeyboardMarkup(btns) if btns else None)
+    else:
+        await update.message.reply_text("Tugmalardan foydalaning! 👇",reply_markup=main_menu_uid(user.id))
+
+async def _gen_test(update,context):
+    user=update.effective_user
+    fan=context.user_data.get("test_fan","Matematika"); sinf=context.user_data.get("test_sinf","9")
+    mavzu=context.user_data.get("test_mavzu","Umumiy"); qiyinlik=context.user_data.get("test_qiyinlik","urta")
+    soni=context.user_data.get("test_soni",20); pdf_tur=context.user_data.get("test_pdf_tur","pro")
+    maktab=context.user_data.get("test_maktab","")
+    await update.message.reply_text(
+        f"⏳ *AI test yaratyapti...*\n📚 {fan} | {sinf}-sinf\n📝 {mavzu}\n{soni} ta | {QIYINLIK_NOMI.get(qiyinlik,qiyinlik)}\n_30-60 soniya..._",
+        parse_mode="Markdown")
+    savollar=await groq_test(fan,sinf,mavzu,soni,qiyinlik)
+    if not savollar:
+        fn=fan.replace(" va adabiyot","").replace("Algebra","Matematika")
+        savollar=ZAXIRA.get(fn,ZAXIRA.get("Matematika",[]))
+    try:
+        t=get_teacher(user.id); ustoz=t.get("ism",user.first_name) or user.first_name
+        pf=pdf_professional(fan,sinf,mavzu,savollar,ustoz,maktab) if pdf_tur=="pro" else pdf_oddiy(fan,sinf,mavzu,savollar,ustoz)
+        with open(pf,"rb") as f:
+            await context.bot.send_document(chat_id=user.id,document=f,
+                filename=f"Test_{fan}_{sinf}sinf.pdf",
+                caption=f"✅ *Test tayyor!*\n📚 {fan} | {sinf}-sinf\n📝 {mavzu}\n❓ {len(savollar)} ta | {QIYINLIK_NOMI.get(qiyinlik,qiyinlik)}",
+                parse_mode="Markdown")
+        os.remove(pf)
+        db=load_db(); uid=str(user.id)
+        if uid in db.get("teachers",{}):
+            if db["teachers"][uid].get("bugun_sana")!=str(date.today()): db["teachers"][uid]["bugun_test"]=0; db["teachers"][uid]["bugun_sana"]=str(date.today())
+            db["teachers"][uid]["bugun_test"]=db["teachers"][uid].get("bugun_test",0)+1
+            db["teachers"][uid].setdefault("testlar",[]).append({"fan":fan,"sinf":sinf,"mavzu":mavzu,"soni":len(savollar),"sana":str(date.today())})
+            save_db(db)
+    except Exception as e: logger.error(f"PDF: {e}"); await context.bot.send_message(user.id,"❌ PDF xatosi!")
+    context.user_data.clear()
+
+async def handle_callback(update:Update,context:ContextTypes.DEFAULT_TYPE):
+    q=update.callback_query; await q.answer(); data=q.data; user=update.effective_user
+    u=get_user(user.id,user.first_name,user.username or "")
+
+    if data.startswith("approve_") and user.id==ADMIN_ID:
+        tid=int(data.replace("approve_","")); db=load_db(); uid=str(tid)
+        req=db.get("teacher_req",{}).get(uid,{})
+        db.setdefault("teachers",{})[uid]={"ism":req.get("ism",""),"username":req.get("username",""),"user_id":tid,
+            "tasdiqlangan":True,"premium":False,"testlar":[],"bugun_test":0,"bugun_sana":str(date.today()),"qoshilgan":str(date.today())}
+        db.get("teacher_req",{}).pop(uid,None); save_db(db)
+        await q.edit_message_text(f"✅ {req.get('ism',uid)} tasdiqlandi!")
+        try: await context.bot.send_message(tid,"🎉 *Tabrik! O'qituvchi sifatida tasdiqlandi!*\n👨‍🏫 O'qituvchi panel → ✏️ Yangi test",parse_mode="Markdown")
+        except: pass
+
+    elif data.startswith("reject_") and user.id==ADMIN_ID:
+        tid=int(data.replace("reject_","")); db=load_db()
+        db.get("teacher_req",{}).pop(str(tid),None); save_db(db)
+        await q.edit_message_text("❌ Rad etildi.")
+        try: await context.bot.send_message(tid,"❌ Arizangiz rad etildi. @ZakovatSupport")
+        except: pass
+
+    elif data=="admin_arizalar" and user.id==ADMIN_ID:
+        db=load_db(); reqs=db.get("teacher_req",{})
+        if not reqs: await q.edit_message_text("Ariza yo'q!"); return
+        txt="👨‍🏫 *ARIZALAR*\n\n"; btns=[]
+        for uid,req in list(reqs.items())[:10]:
+            txt+=f"👤 {req.get('ism')} | {req.get('malumot','')[:40]}\n"
+            btns.append([InlineKeyboardButton(f"✅ {req.get('ism')}",callback_data=f"approve_{uid}"),
+                         InlineKeyboardButton("❌",callback_data=f"reject_{uid}")])
+        await q.edit_message_text(txt,parse_mode="Markdown",reply_markup=InlineKeyboardMarkup(btns))
+
+    elif data.startswith("sinf_") and not data.startswith("sinf_ozgartir"):
         sinf=data.replace("sinf_","")
         if sinf.isdigit():
-            update_user(user.id,{"sinf":sinf})
-            await q.edit_message_text(f"*{sinf}-sinf tanlandi!*\n\nQaysi fan?", parse_mode="Markdown", reply_markup=fanlar_menu(sinf))
+            if context.user_data.get("test_bosqich")=="sinf":
+                context.user_data["test_sinf"]=sinf; context.user_data["test_bosqich"]="fan"
+                await q.edit_message_text(f"✏️ *YANGI TEST*\n🏫 Sinf: {sinf}\n\n2️⃣ Fan:",parse_mode="Markdown",reply_markup=fanlar_menu(sinf))
+            elif context.user_data.get("pdf_bosqich")=="sinf":
+                context.user_data["pdf_sinf"]=sinf; context.user_data["pdf_bosqich"]="fan"
+                await q.edit_message_text(f"Sinf: *{sinf}*\nFan:",parse_mode="Markdown",reply_markup=fanlar_menu(sinf))
+            else:
+                update_user(user.id,{"sinf":sinf})
+                await q.edit_message_text(f"*{sinf}-sinf tanlandi!*\nQaysi fan?",parse_mode="Markdown",reply_markup=fanlar_menu(sinf))
 
-    elif data in ("sinf_ozgartir","back_sinf"):
-        await q.edit_message_text("*Sinfingizni tanlang:*", parse_mode="Markdown", reply_markup=sinf_menu())
+    elif data in("sinf_ozgartir","back_sinf"):
+        await q.edit_message_text("*Sinf tanlang:*",parse_mode="Markdown",reply_markup=sinf_menu())
 
-    # FAN
     elif data.startswith("fan_"):
         parts=data.split("_",2)
         if len(parts)==3:
             _,sinf,fan=parts
-            await q.edit_message_text("AI savol tayyorlamoqda...")
-            savol,idx=await get_savol(fan,sinf,user.id)
-            await q.edit_message_text(f"{FAN_EMOJI.get(fan,'📚')} *{fan}* | {sinf}-sinf\n\n*{savol['s']}*\n\nJavobni tanlang:",
-                parse_mode="Markdown", reply_markup=savol_kb(fan,sinf,savol,idx))
+            if context.user_data.get("test_bosqich")=="fan":
+                context.user_data["test_fan"]=fan; context.user_data["test_bosqich"]="mavzu"
+                await q.edit_message_text(f"✏️ *YANGI TEST*\n🏫 {sinf}-sinf | 📚 {fan}\n\n📝 Mavzuni yozing:\n_Misol: Kvadrat tenglamalar_",parse_mode="Markdown")
+            elif context.user_data.get("pdf_bosqich")=="fan":
+                context.user_data["pdf_fan"]=fan; context.user_data["pdf_bosqich"]="mavzu"
+                await q.edit_message_text(f"Fan: *{fan}*\nMavzu yozing:",parse_mode="Markdown")
+            else:
+                can,_=can_savol(user.id)
+                if not can: await q.edit_message_text(f"⏰ Limit! ({BEPUL_LIMIT}/kun)\n💎 Premium: 19,000 so'm\n@ZakovatSupport"); return
+                await q.edit_message_text("⚡ AI savol tayyorlamoqda...")
+                savol,idx=await get_savol(fan,sinf,user.id)
+                await q.edit_message_text(f"{FAN_EMOJI.get(fan,'📚')} *{fan}* | {sinf}-sinf\n\n*{savol['s']}*\n\nJavob:",
+                    parse_mode="Markdown",reply_markup=savol_kb(fan,sinf,savol,idx))
 
-    # JAVOB
     elif data.startswith("j_"):
         parts=data.split("_"); fan=parts[1]; sinf=parts[2]; idx=int(parts[3]); tanlagan=int(parts[4])
-        db=load_db(); k=f"{fan}_{sinf}"
-        kesh=db.get("kesh",{}).get(k,[])
+        db=load_db(); k=f"{fan}_{sinf}"; kesh=db.get("kesh",{}).get(k,[])
         if not kesh or idx>=len(kesh):
             fn=fan.replace(" va adabiyot","").replace("Algebra","Matematika").replace("Geometriya","Matematika")
             kesh=ZAXIRA.get(fn,ZAXIRA.get("Matematika",[]))
-        savol=kesh[idx] if idx<len(kesh) else kesh[0]
-        togri=savol["t"]; hrf=["A","B","C","D"]
-        uu=javob_berdi(user.id,tanlagan==togri)
-        savol_korildi(user.id,savol["s"])
-
+        savol=kesh[idx] if idx<len(kesh) else kesh[0]; togri=savol["t"]
+        hrf=["A","B","C","D"]; uu=javob_berdi(user.id,tanlagan==togri); savol_korildi(user.id,savol["s"])
         bonus=0
         if tanlagan==togri:
             if uu["streak"]==5: bonus=5; update_user(user.id,{"ball":uu["ball"]+5})
             elif uu["streak"]==10: bonus=10; update_user(user.id,{"ball":uu["ball"]+10})
-
         yy=check_yutuqlar(uu)
         if yy:
             db2=load_db(); db2["users"][str(user.id)]["yutuqlar"].extend(yy); save_db(db2)
-
         if tanlagan==togri:
-            streak_t=f"\nStreak: {uu['streak']}" if uu["streak"]>1 else ""
-            bonus_t=f"\nBonus: +{bonus} ball!" if bonus else ""
-            res=f"TO'G'RI! +10 ball{streak_t}{bonus_t}\n\n{savol['i']}\n\nBall: *{uu['ball']}*"
+            res=(f"✅ *TO'G'RI!* +10 ball"
+                 +(f"\n🔥 Streak: {uu['streak']}" if uu["streak"]>1 else "")
+                 +(f"\n🎁 Bonus: +{bonus}!" if bonus else "")
+                 +f"\n\n💡 {savol['i']}\n\n💎 Ball: *{uu['ball']}*")
         else:
-            res=f"NOTOGRI!\nSiz: {hrf[tanlagan]}) {savol['v'][tanlagan]}\nTogri: {hrf[togri]}) *{savol['v'][togri]}*\n\n{savol['i']}"
-
-        for y in yy: res+=f"\n\nYangi yutuq: {YUTUQLAR[y]['nom']}!"
-        await q.edit_message_text(res, parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Keyingi",callback_data=f"fan_{sinf}_{fan}"),InlineKeyboardButton("Fanlar",callback_data=f"sinf_{sinf}")]]))
+            await q.edit_message_text(
+                f"❌ *NOTO'G'RI!*\nSiz: {hrf[tanlagan]}) {savol['v'][tanlagan]}\nTo'g'ri: {hrf[togri]}) *{savol['v'][togri]}*\n\n🤖 _AI tushuntiryapti..._",
+                parse_mode="Markdown")
+            tush=await groq_tushuntir(savol["s"],savol["v"][tanlagan],savol["v"][togri],fan)
+            res=(f"❌ *NOTO'G'RI!*\nSiz: {hrf[tanlagan]}) {savol['v'][tanlagan]}\n"
+                 f"To'g'ri: {hrf[togri]}) *{savol['v'][togri]}*\n\n🤖 *AI Repetitor:*\n{tush}")
+        for y in yy: res+=f"\n\n🏆 *{YUTUQLAR[y]['nom']}*!"
+        await q.edit_message_text(res,parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("▶️ Keyingi",callback_data=f"fan_{sinf}_{fan}"),
+                InlineKeyboardButton("📚 Fanlar",callback_data=f"sinf_{sinf}")]]))
 
     elif data=="yutuqlar":
-        u=get_user(user.id); mavjud=u.get("yutuqlar",[])
-        t="*YUTUQLARINGIZ*\n\n"
-        for k,v in YUTUQLAR.items(): t+=f"{'OK' if k in mavjud else 'x'} {v['nom']} - {v['tavsif']}\n"
-        await q.edit_message_text(t, parse_mode="Markdown")
+        mav=u.get("yutuqlar",[]); t="🏆 *YUTUQLAR*\n\n"
+        for k,v in YUTUQLAR.items(): t+=f"{'✅' if k in mav else '🔒'} {v['nom']} — _{v['tavsif']}_\n"
+        await q.edit_message_text(t,parse_mode="Markdown")
 
     elif data=="premium_info":
-        await q.edit_message_text("*PREMIUM*\nCheksiz savol + PDF generator + Statistika\n\n1 oy: 29,000 som | 3 oy: 75,000 som | 1 yil: 250,000 som\n@ZakovatSupport", parse_mode="Markdown")
+        await q.edit_message_text("💎 *PREMIUM*\n\nO'quvchi: 19,000 so'm/oy\nO'qituvchi: 49,000 so'm/oy\n\n📞 @ZakovatSupport",parse_mode="Markdown")
 
-    elif context.user_data.get("pdf_bosqich")=="sinf" and data.startswith("sinf_"):
-        sinf=data.replace("sinf_","")
-        if sinf.isdigit():
-            context.user_data["pdf_sinf"]=sinf; context.user_data["pdf_bosqich"]="fan"
-            await q.edit_message_text(f"Sinf: *{sinf}*\n\nQaysi fan?", parse_mode="Markdown", reply_markup=fanlar_menu(sinf))
+    elif data.startswith("qiyin_"):
+        q_val=data.replace("qiyin_",""); context.user_data["test_qiyinlik"]=q_val; context.user_data["test_bosqich"]="soni"
+        await q.edit_message_text(
+            f"📚 {context.user_data.get('test_fan')} | {context.user_data.get('test_sinf')}-sinf\n"
+            f"📝 {context.user_data.get('test_mavzu')} | {QIYINLIK_NOMI.get(q_val,q_val)}\n\n4️⃣ Nechta savol?",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("10",callback_data="soni_10"),InlineKeyboardButton("20",callback_data="soni_20"),
+                InlineKeyboardButton("30",callback_data="soni_30")],[
+                InlineKeyboardButton("40 (Premium)",callback_data="soni_40"),InlineKeyboardButton("50 (Premium)",callback_data="soni_50")]]))
 
-    elif context.user_data.get("pdf_bosqich")=="fan" and data.startswith("fan_"):
-        parts=data.split("_",2)
-        if len(parts)==3:
-            _,sinf,fan=parts; context.user_data["pdf_fan"]=fan; context.user_data["pdf_bosqich"]="mavzu"
-            await q.edit_message_text(f"Fan: *{fan}*\n\nMavzuni yozing:", parse_mode="Markdown")
+    elif data.startswith("soni_"):
+        soni=int(data.replace("soni_","")); t=get_teacher(user.id)
+        if soni>30 and not t.get("premium") and user.id!=ADMIN_ID:
+            await q.edit_message_text("❌ 30+ savol faqat Premium!\n💎 49,000 so'm/oy | @ZakovatSupport"); return
+        context.user_data["test_soni"]=soni; context.user_data["test_bosqich"]="pdf_tur"
+        await q.edit_message_text("5️⃣ PDF turi:",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("📄 Oddiy",callback_data="pdf_tur_oddiy"),
+                InlineKeyboardButton("🏫 Professional",callback_data="pdf_tur_pro")]]))
+
+    elif data.startswith("pdf_tur_"):
+        tur=data.replace("pdf_tur_",""); context.user_data["test_pdf_tur"]=tur
+        if tur=="pro":
+            context.user_data["test_bosqich"]="maktab"
+            await q.edit_message_text("🏫 Maktab nomini yozing:\n_(Bo'sh qoldirish uchun - deb yozing)_",parse_mode="Markdown")
+        else:
+            context.user_data["test_bosqich"]="generate"; context.user_data["test_maktab"]=""
+            msg=await context.bot.send_message(user.id,"⏳ Tayyorlanmoqda...")
+            class FakeUpdate:
+                def __init__(self,m,u): self.message=m; self.effective_user=u
+            await _gen_test(FakeUpdate(msg,user),context)
 
     elif data.startswith("pdf_soni_"):
         soni=int(data.replace("pdf_soni_","")); fan=context.user_data.get("pdf_fan","Tarix")
         sinf=context.user_data.get("pdf_sinf","7"); mavzu=context.user_data.get("pdf_mavzu","Umumiy")
-        await q.edit_message_text("PDF tayyorlanmoqda...")
+        await q.edit_message_text("⏳ PDF tayyorlanmoqda...")
+        savollar=await groq_test(fan,sinf,mavzu,soni,"urta")
+        if not savollar:
+            fn=fan.replace(" va adabiyot","").replace("Algebra","Matematika")
+            savollar=ZAXIRA.get(fn,ZAXIRA.get("Matematika",[]))
         try:
-            pf=pdf_test_yaratish(fan,sinf,mavzu,u["ism"],str(date.today()),soni)
+            pf=pdf_professional(fan,sinf,mavzu,savollar,u.get("ism",""))
             with open(pf,"rb") as f:
-                await context.bot.send_document(chat_id=user.id,document=f,filename=f"Test_{fan}_{sinf}sinf.pdf",
-                    caption=f"*{fan} | {sinf}-sinf | {mavzu}*\n{soni} ta savol",parse_mode="Markdown")
+                await context.bot.send_document(chat_id=user.id,document=f,
+                    filename=f"Test_{fan}_{sinf}sinf.pdf",
+                    caption=f"*{fan} | {sinf}-sinf | {mavzu}*\n{len(savollar)} ta savol",parse_mode="Markdown")
             os.remove(pf); context.user_data.clear()
-        except Exception as e:
-            logger.error(f"PDF: {e}"); await context.bot.send_message(user.id,"PDF xatosi!")
+        except Exception as e: logger.error(f"PDF: {e}"); await context.bot.send_message(user.id,"❌ PDF xatosi!")
 
-# ══════════════════════════════════════════
-# ISHGA TUSHIRISH
-# ══════════════════════════════════════════
 def main():
-    print("ZAKOVATBOT v2.0 ISHGA TUSHDI!")
+    print("="*50); print("  ZAKOVATBOT v3.0"); print("="*50)
     app=Application.builder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start",   start_cmd))
-    app.add_handler(CommandHandler("help",    yordam_cmd))
-    app.add_handler(CommandHandler("profile", profile_cmd))
-    app.add_handler(CommandHandler("reyting", reyting_cmd))
-    app.add_handler(CommandHandler("dostlar", dostlar_cmd))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(CommandHandler("start",start_cmd))
+    app.add_handler(CommandHandler("help",yordam_cmd))
+    app.add_handler(CommandHandler("profile",profile_cmd))
+    app.add_handler(CommandHandler("reyting",reyting_cmd))
+    app.add_handler(CommandHandler("dostlar",dostlar_cmd))
+    app.add_handler(MessageHandler(filters.TEXT&~filters.COMMAND,handle_message))
     app.add_handler(CallbackQueryHandler(handle_callback))
-    print("Bot ishlayapti! Ctrl+C - toxtatish")
-    app.run_polling(drop_pending_updates=True)
+    print("✅ Bot ishlayapti!"); app.run_polling(drop_pending_updates=True)
 
-if __name__ == "__main__":
-    main()
+if __name__=="__main__": main()
