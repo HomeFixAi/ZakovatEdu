@@ -508,13 +508,13 @@ async def handle_message(update:Update,context:ContextTypes.DEFAULT_TYPE):
             f"📊 *STATISTIKA*\n\nJami testlar: {len(t.get('testlar',[]))}\nBugun: {t.get('bugun_test',0)} ta",parse_mode="Markdown")
     elif txt in("💎 Premium","💎 Premium olish"):
         await update.message.reply_text(
-            "💎 *PREMIUM*\n\n👨‍🎓 O'quvchi: 19,000 so'm/oy\n• Cheksiz savol\n• PDF test\n\n"
-            "👨‍🏫 O'qituvchi: 49,000 so'm/oy\n• Cheksiz test\n• Professional PDF (40-50 savol)\n\n📞 @ZakovatSupport",parse_mode="Markdown")
+            "💎 *PREMIUM*\n\n👨‍🎓 O'quvchi: 39,000 so'm/oy\n• Cheksiz savol\n• PDF test\n\n"
+            "👨‍🏫 O'qituvchi: 79,000 so'm/oy\n• Cheksiz test\n• Professional PDF (40-50 savol)\n\n📞 @ZakovatHelp",parse_mode="Markdown")
     elif txt=="🔙 Orqaga":
         await update.message.reply_text("Asosiy menyu:",reply_markup=main_menu_uid(user.id))
     elif txt=="📄 PDF Test":
         if not u.get("premium") and user.id!=ADMIN_ID:
-            await update.message.reply_text("💎 Bu Premium uchun!\n19,000 so'm/oy | @ZakovatSupport"); return
+            await update.message.reply_text("💎 Bu Premium uchun!\n39,000 so'm/oy | @ZakovatHelp"); return
         context.user_data["pdf_bosqich"]="sinf"
         await update.message.reply_text("📄 *PDF Test — Sinf:*",parse_mode="Markdown",reply_markup=sinf_menu())
     elif txt=="⚙️ Admin panel":
@@ -664,7 +664,7 @@ async def handle_callback(update:Update,context:ContextTypes.DEFAULT_TYPE):
         await q.edit_message_text(t,parse_mode="Markdown")
 
     elif data=="premium_info":
-        await q.edit_message_text("💎 *PREMIUM*\n\nO'quvchi: 19,000 so'm/oy\nO'qituvchi: 49,000 so'm/oy\n\n📞 @ZakovatSupport",parse_mode="Markdown")
+        await q.edit_message_text("💎 *PREMIUM*\n\nO'quvchi: 39,000 so'm/oy\nO'qituvchi: 79,000 so'm/oy\n\n📞 @ZakovatSupport",parse_mode="Markdown")
 
     elif data.startswith("qiyin_"):
         q_val=data.replace("qiyin_",""); context.user_data["test_qiyinlik"]=q_val; context.user_data["test_bosqich"]="soni"
