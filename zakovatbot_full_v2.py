@@ -402,7 +402,7 @@ async def yordam_cmd(update:Update,context:ContextTypes.DEFAULT_TYPE):
         "👨‍🏫 O'qituvchi panel — Test yarat, PDF ol\n\n"
         "💎 *Premium:* Cheksiz savol, PDF, Statistika\n"
         "O'quvchi: 19,000 so'm/oy | O'qituvchi: 49,000 so'm/oy\n\n"
-        "📞 @ZakovatSupport",parse_mode="Markdown")
+        "📞 @ZakovatHelp",parse_mode="Markdown")
 
 async def teacher_panel_cmd(update:Update,context:ContextTypes.DEFAULT_TYPE):
     user=update.effective_user
